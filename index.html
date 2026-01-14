@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>打字射擊遊戲</title>
+    <title>打字射擊遊戲 - 進階版</title>
     <style>
         /* 🎨 遊戲的 CSS 樣式 */
         body {
@@ -12,7 +12,7 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background-color: #1a1a2e; /* 深色背景 */
+            background-color: #1a1a2e;
             font-family: 'Arial', sans-serif;
             overflow: hidden;
         }
@@ -20,7 +20,7 @@
         #game-container {
             width: 800px;
             height: 600px;
-            border: 5px solid #00ffff; /* 霓虹藍邊框 */
+            border: 5px solid #00ffff;
             background-color: #0d0d1a;
             position: relative;
             box-shadow: 0 0 20px #00ffff;
@@ -31,8 +31,17 @@
             position: absolute;
             top: 10px;
             left: 10px;
-            color: #ffcc00; /* 金色文字 */
+            color: #ffcc00;
             font-size: 24px;
+            z-index: 10;
+        }
+        
+        #level-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #ff00ff;
+            font-size: 20px;
             z-index: 10;
         }
 
@@ -44,53 +53,54 @@
             width: 90%;
             text-align: center;
             padding: 10px;
-            font-size: 20px;
+            font-size: 24px; /* 字體加大 */
             background: #333;
             border: 2px solid #fff;
-            color: white;
+            color: #00ff00; /* 輸入文字變綠色 */
             z-index: 10;
             outline: none;
-            caret-color: transparent; /* 隱藏光標 */
+            font-weight: bold;
+            pointer-events: none; /* 禁止玩家手動點擊修改，完全由程式控制 */
         }
 
         .word {
             position: absolute;
-            color: #ff4141; /* 紅色敵機文字 */
+            color: #ff4141;
             font-size: 30px;
             padding: 5px 10px;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 5px;
             white-space: nowrap;
             user-select: none;
-            transition: transform 0.1s linear; /* 平滑移動 */
             z-index: 5;
+            font-family: monospace;
         }
 
         .typed-char {
-            color: #66ff66; /* 綠色已輸入文字 */
+            color: #66ff66;
             font-weight: bold;
         }
 
         .player-plane {
             position: absolute;
-            bottom: 60px;
+            bottom: 80px; /* 稍微調高以免擋住輸入框 */
             left: 50%;
             transform: translateX(-50%);
             font-size: 40px;
             color: #00ff00;
             pointer-events: none;
             z-index: 10;
+            transition: left 0.1s; /* 戰機移動加一點平滑 */
         }
 
         .bullet {
             position: absolute;
-            width: 5px;
-            height: 15px;
-            background-color: #ffaa00; /* 橙色子彈 */
-            bottom: 100px; /* 從戰機上方發射 */
+            width: 4px;
+            height: 12px;
+            background-color: #ffaa00;
             z-index: 8;
             border-radius: 50%;
-            box-shadow: 0 0 10px #ffaa00;
+            box-shadow: 0 0 8px #ffaa00;
         }
 
         #start-screen {
@@ -99,30 +109,73 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
+            background-color: rgba(0, 0, 0, 0.95);
             color: white;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 20;
-            font-size: 30px;
         }
 
-        #start-button {
-            padding: 15px 30px;
+        h1 { margin-bottom: 10px; color: #00ffff; text-shadow: 0 0 10px #00ffff; }
+        p { margin: 5px; color: #ccc; }
+
+        /* 難度選擇樣式 */
+        .difficulty-selector {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+        }
+
+        .difficulty-label {
+            cursor: pointer;
+            padding: 10px 20px;
+            border: 2px solid #555;
+            border-radius: 5px;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* 隱藏原生 radio，改用 label 樣式 */
+        .difficulty-selector input[type="radio"] {
+            display: none;
+        }
+
+        .difficulty-selector input[type="radio"]:checked + span {
+            background-color: #00ffff;
+            color: #000;
+            box-shadow: 0 0 15px #00ffff;
+            border-color: #00ffff;
+            font-weight: bold;
+        }
+        
+        .difficulty-selector span {
+            display: block;
+            width: 100%;
+            height: 100%;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+
+        #start-button, #restart-button {
+            padding: 15px 40px;
             font-size: 24px;
             cursor: pointer;
             margin-top: 20px;
-            background-color: #00ffff;
-            color: #1a1a2e;
+            background-color: #ff0055;
+            color: white;
             border: none;
             border-radius: 5px;
-            transition: background-color 0.3s;
+            transition: 0.2s;
+            box-shadow: 0 0 10px #ff0055;
         }
 
-        #start-button:hover {
-            background-color: #66ffff;
+        #start-button:hover, #restart-button:hover {
+            background-color: #ff3377;
+            transform: scale(1.05);
         }
 
     </style>
@@ -131,93 +184,154 @@
 
     <div id="game-container">
         <div id="score-board">分數: 0</div>
+        <div id="level-display">速度: 1.0x</div>
         <div class="player-plane">▲</div>
-        <input type="text" id="player-input" placeholder="開始打字...">
+        <input type="text" id="player-input" placeholder="等待開始..." readonly>
 
         <div id="start-screen">
-            <h1>打字射擊遊戲</h1>
-            <p>輸入螢幕上的單詞來射擊敵機！</p>
-            <p>點擊開始後，直接在鍵盤上輸入即可。</p>
-            <button id="start-button">點擊開始遊戲</button>
+            <h1>霓虹打字射擊</h1>
+            <p>輸入單詞射擊敵機，不要讓它們觸底！</p>
+            
+            <div class="difficulty-selector">
+                <label>
+                    <input type="radio" name="difficulty" value="easy" checked>
+                    <span>簡單 (新手)</span>
+                </label>
+                <label>
+                    <input type="radio" name="difficulty" value="normal">
+                    <span>普通 (挑戰)</span>
+                </label>
+                <label>
+                    <input type="radio" name="difficulty" value="hard">
+                    <span>困難 (地獄)</span>
+                </label>
+            </div>
+
+            <button id="start-button">開始任務</button>
         </div>
     </div>
 
     <script>
-        // 💻 遊戲的 JavaScript 邏輯
         const gameContainer = document.getElementById('game-container');
         const scoreBoard = document.getElementById('score-board');
+        const levelDisplay = document.getElementById('level-display');
         const playerInput = document.getElementById('player-input');
         const playerPlane = document.querySelector('.player-plane');
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
+        const inputs = document.querySelectorAll('input[name="difficulty"]');
 
-        // 遊戲變數
+        // 遊戲狀態
         let score = 0;
         let words = [];
-        let currentWordElement = null;
-        let currentWordIndex = 0;
+        let currentWordElement = null; // 當前鎖定的單詞元素
+        let currentWordData = null;    // 當前鎖定的單詞數據对象
         let gameRunning = false;
-        let wordInterval;
         let gameLoopInterval;
+        let spawnTimeout; // 改用 timeout 實現動態生成頻率
 
-        // 遊戲單詞庫
+        // 難度設定
+        let difficultySettings = {
+            baseSpeed: 1,      // 基礎下落速度
+            spawnRate: 2000,   // 初始生成間隔 (ms)
+            speedMultiplier: 1 // 速度隨分數增加的倍率
+        };
+
+        // 單詞庫
         const wordList = [
-            "computer", "keyboard", "program", "javascript", "typing",
-            "airplane", "missile", "shooter", "challenge", "galaxy",
-            "cosmos", "starship", "planet", "coding", "develop",
-            "syntax", "algorithm", "network", "browser", "element"
+            "code", "data", "file", "hack", "java", "link", "node", "ruby", "text", "user", "web",
+            "cloud", "debug", "email", "frame", "html", "input", "logic", "model", "pixel", "stack",
+            "script", "server", "socket", "source", "stream", "string", "struct", "submit", "switch",
+            "syntax", "system", "target", "thread", "update", "upload", "value", "vector", "virus",
+            "window", "widget", "wizard", "worker", "writer", "browser", "button", "cache", "client",
+            "column", "config", "cookie", "cursor", "daemon", "delete", "design", "device", "django"
         ];
 
-        // --- 遊戲初始化與開始 ---
+        // --- 初始化 ---
 
         startButton.addEventListener('click', () => {
+            // 讀取選中的難度
+            const selectedDifficulty = document.querySelector('input[name="difficulty"]:checked').value;
+            setDifficulty(selectedDifficulty);
+            
             startScreen.style.display = 'none';
-            playerInput.focus();
             startGame();
         });
 
-        // --- 遊戲邏輯 ---
+        function setDifficulty(level) {
+            switch(level) {
+                case 'easy':
+                    difficultySettings.baseSpeed = 0.8;
+                    difficultySettings.spawnRate = 2500;
+                    difficultySettings.scoreFactor = 0.005; // 成長慢
+                    break;
+                case 'normal':
+                    difficultySettings.baseSpeed = 1.5;
+                    difficultySettings.spawnRate = 1800;
+                    difficultySettings.scoreFactor = 0.01; // 成長中等
+                    break;
+                case 'hard':
+                    difficultySettings.baseSpeed = 2.5;
+                    difficultySettings.spawnRate = 1200;
+                    difficultySettings.scoreFactor = 0.02; // 成長快
+                    break;
+            }
+        }
+
+        // --- 遊戲核心邏輯 ---
 
         function startGame() {
             if (gameRunning) return;
             gameRunning = true;
             score = 0;
-            updateScore();
+            difficultySettings.speedMultiplier = 1; // 重置倍率
+            
+            updateUI();
             words = [];
             currentWordElement = null;
-            currentWordIndex = 0;
+            currentWordData = null;
             
-            // 清理所有敵機
-            document.querySelectorAll('.word').forEach(w => w.remove());
+            playerInput.value = ''; // 清空顯示
+            playerInput.placeholder = '輸入單詞...';
 
-            // 遊戲主循環：控制敵機下落
-            gameLoopInterval = setInterval(gameLoop, 50); 
+            document.querySelectorAll('.word').forEach(w => w.remove());
+            document.querySelectorAll('.bullet').forEach(b => b.remove());
+
+            // 啟動主循環 (FPS: 60)
+            gameLoopInterval = setInterval(gameLoop, 16); 
             
-            // 隨機生成新單詞（敵機）
-            wordInterval = setInterval(createWord, 2000); 
+            // 啟動單詞生成 (遞歸調用以支持變速)
+            scheduleNextWord();
             
-            // 確保輸入框始終獲得焦點
             document.addEventListener('keydown', handleGlobalKeydown);
+        }
+
+        // 動態生成敵機 (取代 setInterval)
+        function scheduleNextWord() {
+            if (!gameRunning) return;
+
+            createWord();
+
+            // 計算下一次生成的時間：分數越高，生成越快 (最快 500ms)
+            let currentSpawnRate = Math.max(500, difficultySettings.spawnRate - (score * 5)); 
             
-            // 移除輸入框的值（防止開始時有殘留）
-            playerInput.value = '';
+            spawnTimeout = setTimeout(scheduleNextWord, currentSpawnRate);
         }
 
         function handleGlobalKeydown(e) {
-            // 只處理字母鍵和空格鍵
+            if (!gameRunning) return;
+            
+            // 允許的按鍵: A-Z
             if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
-                processInput(e.key);
-                e.preventDefault(); // 阻止瀏覽器預設行為 (例如空格鍵滾動)
-            } else if (e.key === ' ' || e.key === 'Enter') {
-                 e.preventDefault(); 
+                processInput(e.key.toLowerCase());
             }
         }
-        
-        function updateScore() {
-            scoreBoard.textContent = `分數: ${score}`;
-        }
 
-        // --- 敵機 (單詞) 相關 ---
+        function updateUI() {
+            scoreBoard.textContent = `分數: ${score}`;
+            // 顯示當前速度倍率
+            levelDisplay.textContent = `速度: ${difficultySettings.speedMultiplier.toFixed(1)}x`;
+        }
 
         function createWord() {
             const wordText = wordList[Math.floor(Math.random() * wordList.length)];
@@ -225,140 +339,177 @@
             wordElement.classList.add('word');
             wordElement.textContent = wordText;
             
-            // 隨機初始位置
-            const x = Math.random() * (gameContainer.offsetWidth - 150) + 75;
+            // 隨機位置 (避免貼邊)
+            const x = Math.random() * (gameContainer.offsetWidth - 120) + 60;
             wordElement.style.left = `${x}px`;
-            wordElement.style.top = '-50px';
+            wordElement.style.top = '-40px';
             
-            // 隨機速度 (1到3)
-            wordElement.dataset.speed = Math.random() * 2 + 1; 
-            
-            words.push({
+            // 個體速度差異 (基礎速度 * 隨機波動)
+            const individualSpeed = difficultySettings.baseSpeed * (0.8 + Math.random() * 0.4);
+
+            const wordObj = {
                 element: wordElement,
                 text: wordText,
-                typedIndex: 0
-            });
-            
+                typedIndex: 0,
+                baseSpeed: individualSpeed
+            };
+
+            words.push(wordObj);
             gameContainer.appendChild(wordElement);
         }
 
         function gameLoop() {
             if (!gameRunning) return;
 
-            // 移動所有單詞
-            words.forEach((word, index) => {
-                const currentTop = parseFloat(word.element.style.top);
-                const newTop = currentTop + parseFloat(word.element.dataset.speed);
-                word.element.style.top = `${newTop}px`;
+            // 根據分數增加全局速度 (Ramping)
+            // 公式：1 + (分數 * 難度係數)
+            difficultySettings.speedMultiplier = 1 + (score * difficultySettings.scoreFactor);
+            updateUI();
+
+            words.forEach((wordObj, index) => {
+                const currentTop = parseFloat(wordObj.element.style.top);
                 
-                // 檢查是否超出底部 (遊戲失敗條件)
-                if (newTop > gameContainer.offsetHeight - 50) {
+                // 最終速度 = 個體速度 * 全局倍率
+                const moveSpeed = wordObj.baseSpeed * difficultySettings.speedMultiplier;
+                
+                const newTop = currentTop + moveSpeed;
+                wordObj.element.style.top = `${newTop}px`;
+
+                // 檢查是否觸底
+                if (newTop > gameContainer.offsetHeight - 40) {
                     gameOver();
                 }
             });
-            
-            // 過濾掉已經完成或移除的單詞
-            words = words.filter(word => word.element.parentElement !== null);
         }
 
-        // --- 玩家輸入與射擊 ---
+        // --- 輸入處理 ---
 
         function processInput(char) {
-            if (!gameRunning) return;
-            
-            // 1. 鎖定當前單詞
-            if (!currentWordElement) {
-                // 找出第一個以輸入字母開頭的單詞
-                const targetWord = words.find(w => w.text.startsWith(char));
-                
-                if (targetWord) {
-                    currentWordElement = targetWord.element;
-                    currentWordIndex = 0;
-                    playerPlane.style.left = currentWordElement.style.left; // 戰機鎖定目標
+            // 1. 如果還沒鎖定單詞，尋找目標
+            if (!currentWordData) {
+                const target = words.find(w => w.text.startsWith(char));
+                if (target) {
+                    currentWordData = target;
+                    currentWordElement = target.element;
+                    playerPlane.style.left = currentWordElement.style.left; // 戰機移動
+                    
+                    // 在下方輸入框顯示
+                    playerInput.value = char;
                 } else {
-                    return; // 沒有匹配的單詞
+                    // 打錯字的反饋 (可選: 閃紅)
+                    return; 
+                }
+            } 
+            // 2. 已經鎖定，檢查下一個字母
+            else {
+                const expectedChar = currentWordData.text[currentWordData.typedIndex];
+                
+                // 因為第一個字母在鎖定時已經確認過了，如果是剛鎖定(index=0)，這裡邏輯要小心
+                // 為了簡化，鎖定邏輯中已經匹配了 index 0。
+                // 這裡我們需要檢查的是：輸入的 char 是否等於 "當前等待輸入的 char"
+                
+                // 修正邏輯：
+                // 如果剛鎖定，currentWordData.typedIndex 應該是 0。
+                // 鎖定動作本身就算輸入了第一個字嗎？
+                // 通常遊戲邏輯是：按下 'c' -> 鎖定 'code' -> 'c' 變綠 -> 等待 'o'。
+                
+                // 讓我們統一邏輯：
+                // 查找階段：輸入 'c'，找到 'code'，標記 'c' 為已輸入 (typedIndex 設為 1)，發射子彈。
+                // 鎖定階段：輸入 'o'，檢查 index 1，匹配 -> index++ -> 發射。
+            }
+
+            // 為了處理上述邏輯，我們重構一下上面的 if/else
+            
+            // --- 重構後的輸入檢查 ---
+            let isHit = false;
+
+            if (!currentWordData) {
+                // 未鎖定狀態：找首字母
+                const target = words.find(w => w.text.startsWith(char));
+                if (target) {
+                    currentWordData = target;
+                    currentWordElement = target.element;
+                    playerPlane.style.left = currentWordElement.style.left;
+                    isHit = true;
+                    // 輸入框顯示
+                    playerInput.value = char; 
+                }
+            } else {
+                // 已鎖定狀態：檢查當前所需字母
+                const nextCharNeeded = currentWordData.text[currentWordData.typedIndex];
+                if (char === nextCharNeeded) {
+                    isHit = true;
+                    // 輸入框追加文字
+                    playerInput.value += char;
                 }
             }
 
-            // 2. 檢查下一個字母是否匹配
-            const wordData = words.find(w => w.element === currentWordElement);
-            if (!wordData) {
-                currentWordElement = null;
-                return;
-            }
-            
-            const expectedChar = wordData.text[wordData.typedIndex];
-
-            if (char === expectedChar) {
-                // 匹配成功
+            if (isHit) {
+                // 發射子彈
                 fireBullet(currentWordElement);
-                
-                // 更新單詞顯示
-                const originalText = wordData.text;
-                const typedPart = `<span class="typed-char">${originalText.substring(0, wordData.typedIndex + 1)}</span>`;
-                const remainingPart = originalText.substring(wordData.typedIndex + 1);
-                currentWordElement.innerHTML = typedPart + remainingPart;
 
-                wordData.typedIndex++;
+                // 更新文字顯示 (變綠)
+                currentWordData.typedIndex++;
+                const originalText = currentWordData.text;
+                const typed = originalText.substring(0, currentWordData.typedIndex);
+                const untyped = originalText.substring(currentWordData.typedIndex);
+                currentWordElement.innerHTML = `<span class="typed-char">${typed}</span>${untyped}`;
 
                 // 檢查單詞是否完成
-                if (wordData.typedIndex === wordData.text.length) {
-                    // 單詞完成，銷毀敵機
-                    score += wordData.text.length; // 根據單詞長度加分
-                    updateScore();
+                if (currentWordData.typedIndex === originalText.length) {
+                    // 銷毀
+                    score += originalText.length;
                     
-                    // 銷毀動畫 (可選: 增加爆炸效果)
+                    // 從陣列移除
+                    words = words.filter(w => w !== currentWordData);
                     currentWordElement.remove();
                     
-                    // 解鎖目標
+                    // 重置鎖定
+                    currentWordData = null;
                     currentWordElement = null;
-                    playerPlane.style.left = '50%'; // 戰機回歸中心
+                    playerInput.value = ''; // 清空輸入框
+                    playerPlane.style.left = '50%';
                 }
-
             } else {
-                // 匹配失敗，可以加入懲罰機制或音效
-                // 例如: score -= 1;
+                // 輸入錯誤 (可選: 處罰或音效)
             }
         }
-        
-        function fireBullet(targetElement) {
+
+        function fireBullet(target) {
             const bullet = document.createElement('div');
             bullet.classList.add('bullet');
             
-            // 子彈從戰機中央發射
             const planeRect = playerPlane.getBoundingClientRect();
             const gameRect = gameContainer.getBoundingClientRect();
             
-            bullet.style.left = `${planeRect.left + planeRect.width / 2 - gameRect.left - 2.5}px`;
+            bullet.style.left = `${planeRect.left + planeRect.width/2 - gameRect.left - 2}px`;
             bullet.style.top = `${planeRect.top - gameRect.top}px`;
             
             gameContainer.appendChild(bullet);
 
+            // 計算目標位置 (預判一點點移動)
+            const targetX = parseFloat(target.style.left) + 30; // 簡單對準中心
+            const targetY = parseFloat(target.style.top) + 20;
+
             // 子彈動畫
-            const targetX = parseFloat(targetElement.style.left) + targetElement.offsetWidth / 2;
-            const targetY = parseFloat(targetElement.style.top);
-            
-            const bulletSpeed = 50; 
-            
-            const animateBullet = () => {
-                const currentTop = parseFloat(bullet.style.top);
-                const currentLeft = parseFloat(bullet.style.left);
-                
-                // 簡單地直接向上移動
-                const newTop = currentTop - bulletSpeed; 
-                bullet.style.top = `${newTop}px`;
+            let bulletY = parseFloat(bullet.style.top);
+            const speed = 25;
 
-                // 檢查是否擊中目標或飛出螢幕
-                if (newTop <= targetY) {
-                    bullet.remove(); // 銷毀子彈
-                } else if (newTop < -15) {
-                    bullet.remove(); // 飛出上邊界
+            function animate() {
+                bulletY -= speed;
+                bullet.style.top = `${bulletY}px`;
+
+                // 簡單碰撞檢測 (只看高度)
+                const currentTargetY = parseFloat(target.style.top);
+                if (bulletY <= currentTargetY + 30) {
+                    bullet.remove(); // 擊中效果
+                } else if (bulletY < -20) {
+                    bullet.remove();
                 } else {
-                    requestAnimationFrame(animateBullet);
+                    requestAnimationFrame(animate);
                 }
-            };
-
-            requestAnimationFrame(animateBullet);
+            }
+            requestAnimationFrame(animate);
         }
 
         // --- 遊戲結束 ---
@@ -366,22 +517,22 @@
         function gameOver() {
             gameRunning = false;
             clearInterval(gameLoopInterval);
-            clearInterval(wordInterval);
+            clearTimeout(spawnTimeout);
             document.removeEventListener('keydown', handleGlobalKeydown);
             
             startScreen.innerHTML = `
-                <h1>遊戲結束 (GAME OVER)</h1>
-                <p>最終分數: ${score}</p>
+                <h1>任務失敗 (GAME OVER)</h1>
+                <p>最終分數: <span style="color:#ffcc00; font-size:1.5em">${score}</span></p>
                 <button id="restart-button">重新開始</button>
             `;
             startScreen.style.display = 'flex';
             
             document.getElementById('restart-button').addEventListener('click', () => {
-                startScreen.style.display = 'none';
-                startGame();
+                // 重新載入頁面最簡單，或手動重置所有狀態
+                location.reload(); 
             });
         }
-    </script>
 
+    </script>
 </body>
 </html>
