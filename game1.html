@@ -2,18 +2,19 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>LF2 復刻版 - AI 對戰</title>
+    <title>LF2 強化版 - 格擋與流暢動作</title>
     <style>
-        body { margin: 0; background-color: #222; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
-        #gameContainer { position: relative; border: 4px solid #444; }
-        canvas { background-color: #70c5ce; display: block; cursor: crosshair; }
+        body { margin: 0; background-color: #1a1a1a; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; overflow: hidden; }
+        #gameContainer { position: relative; border: 5px solid #333; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        canvas { background-color: #5d9ba3; display: block; }
         .ui-layer { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; pointer-events: none; }
-        .health-box { width: 220px; background: rgba(0,0,0,0.6); padding: 5px; border-radius: 5px; }
-        .bar-bg { width: 100%; height: 15px; background: #440000; border: 1px solid #fff; margin-top: 5px; }
-        .bar-fill { height: 100%; background: linear-gradient(to bottom, #00ff00, #008800); width: 100%; transition: width 0.2s; }
-        #restartBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 15px 30px; font-size: 20px; cursor: pointer; background: #ffcc00; border: none; border-radius: 5px; font-weight: bold; display: none; pointer-events: auto; }
-        #restartBtn:hover { background: #ffaa00; }
-        #status { position: absolute; bottom: 20px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; font-size: 14px; }
+        .health-box { width: 250px; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 4px; border-left: 5px solid #2b58de; }
+        .health-box.ai { border-left: none; border-right: 5px solid #d11d1d; text-align: right; }
+        .bar-bg { width: 100%; height: 18px; background: #330000; border: 1px solid #555; margin-top: 5px; overflow: hidden; }
+        .bar-fill { height: 100%; background: linear-gradient(90deg, #4ef037, #228b22); width: 100%; transition: width 0.15s ease-out; }
+        #restartBtn { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); padding: 12px 25px; font-size: 18px; cursor: pointer; background: #fff; border: none; border-radius: 3px; font-weight: bold; display: none; z-index: 10; }
+        #status { position: absolute; bottom: 15px; background: rgba(0,0,0,0.6); padding: 5px 20px; border-radius: 50px; font-size: 13px; color: #ccc; }
+        .win-text { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 48px; font-weight: bold; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); display: none; }
     </style>
 </head>
 <body>
@@ -21,23 +22,25 @@
 <div id="gameContainer">
     <div class="ui-layer">
         <div class="health-box">
-            <div>P1: 藍色武術家</div>
+            <div id="p1Name">P1: 武術家 (藍)</div>
             <div class="bar-bg"><div id="p1Health" class="bar-fill"></div></div>
         </div>
-        <div class="health-box">
-            <div>AI: 紅色忍者</div>
-            <div class="bar-bg"><div id="p2Health" class="bar-fill" style="background: linear-gradient(to bottom, #ff3333, #880000);"></div></div>
+        <div class="health-box ai">
+            <div>AI: 忍者 (紅)</div>
+            <div class="bar-bg"><div id="p2Health" class="bar-fill" style="background: linear-gradient(90deg, #ff4d4d, #b30000);"></div></div>
         </div>
     </div>
-    <button id="restartBtn" onclick="resetGame()">重新開始遊戲</button>
-    <canvas id="gameCanvas" width="800" height="450"></canvas>
-    <div id="status">P1: WASD 移動, J 攻擊 | AI 自動戰鬥中</div>
+    <div id="winDisplay" class="win-text"></div>
+    <button id="restartBtn" onclick="resetGame()">RESTART</button>
+    <canvas id="gameCanvas" width="850" height="420"></canvas>
+    <div id="status">移動: WASD | 攻擊: J | 格擋: K (按住減傷)</div>
 </div>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const restartBtn = document.getElementById('restartBtn');
+    const winDisplay = document.getElementById('winDisplay');
 
     let gameActive = true;
 
@@ -50,155 +53,189 @@
             this.color = color;
             this.isAI = isAI;
             this.health = 100;
-            this.isAttacking = false;
-            this.facing = isAI ? -1 : 1; // 1 向右, -1 向左
-            this.attackCooldown = false;
+            
+            // 狀態管理
+            this.state = 'IDLE'; // IDLE, ATTACK, HURT, BLOCK
+            this.facing = isAI ? -1 : 1;
+            this.hitstun = 0;
+            this.attackFrame = 0;
         }
 
-        // 繪製皮膚 (像素風格小人)
         draw() {
             const {x, y} = this.position;
             
-            // 陰影
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath(); ctx.ellipse(x + 25, y + 80, 20, 7, 0, 0, Math.PI*2); ctx.fill();
+            // 影子
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath(); ctx.ellipse(x + 25, y + 80, 22, 6, 0, 0, Math.PI*2); ctx.fill();
 
-            // 身體
-            ctx.fillStyle = this.color;
-            ctx.fillRect(x + 10, y + 25, 30, 40); // 軀幹
-            
-            // 頭部
-            ctx.fillStyle = '#ffdbac'; // 膚色
-            ctx.fillRect(x + 15, y, 20, 25);
-            ctx.fillStyle = this.isAI ? '#333' : '#222'; // 頭髮或面罩
-            ctx.fillRect(x + 15, y, 20, 8);
-
-            // 手部 (根據朝向)
-            ctx.fillStyle = this.color;
-            if (this.isAttacking) {
-                ctx.fillRect(this.facing === 1 ? x + 35 : x - 15, y + 30, 30, 15);
+            // 受傷閃紅效果
+            if (this.state === 'HURT') {
+                ctx.fillStyle = 'white';
+            } else if (this.state === 'BLOCK') {
+                ctx.fillStyle = '#FFD700'; // 格擋金黃色
             } else {
-                ctx.fillRect(x + 5, y + 30, 10, 25);
-                ctx.fillRect(x + 35, y + 30, 10, 25);
+                ctx.fillStyle = this.color;
             }
 
-            // 腿部
-            ctx.fillStyle = '#333';
-            ctx.fillRect(x + 10, y + 65, 12, 15);
-            ctx.fillRect(x + 28, y + 65, 12, 15);
+            // 繪製身體 (更加流暢的動作表現)
+            // 軀幹
+            ctx.fillRect(x + 10, y + 25, 30, 40);
+            
+            // 頭部
+            ctx.fillStyle = '#ffdbac';
+            ctx.fillRect(x + 15, y + (this.state === 'ATTACK' ? 5 : 0), 20, 25);
+
+            // 手部動作
+            ctx.fillStyle = this.state === 'BLOCK' ? '#FFD700' : this.color;
+            if (this.state === 'ATTACK') {
+                ctx.fillRect(this.facing === 1 ? x + 35 : x - 15, y + 30, 30, 15);
+            } else if (this.state === 'BLOCK') {
+                ctx.fillRect(x + 5, y + 15, 10, 30); // 雙手護頭
+                ctx.fillRect(x + 35, y + 15, 10, 30);
+            } else {
+                ctx.fillRect(x + 2, y + 30, 10, 25);
+                ctx.fillRect(x + 38, y + 30, 10, 25);
+            }
         }
 
         update() {
             if (this.health <= 0) return;
+
+            // 處理硬直計時
+            if (this.hitstun > 0) {
+                this.hitstun--;
+                if (this.hitstun === 0) this.state = 'IDLE';
+            }
+
             this.draw();
-            
+
+            // 應用速度
             this.position.x += this.velocity.x;
             this.position.y += this.velocity.y;
 
-            // 限制地圖範圍 (2.5D 地板)
-            if (this.position.y < 200) this.position.y = 200;
+            // 摩擦力 (讓擊退更平滑)
+            this.velocity.x *= 0.8;
+            this.velocity.y *= 0.8;
+
+            // 邊界限制
+            if (this.position.y < 180) this.position.y = 180;
             if (this.position.y > canvas.height - 90) this.position.y = canvas.height - 90;
             if (this.position.x < 0) this.position.x = 0;
             if (this.position.x > canvas.width - 50) this.position.x = canvas.width - 50;
         }
 
         attack() {
-            if (this.attackCooldown || this.health <= 0) return;
-            this.isAttacking = true;
-            this.attackCooldown = true;
+            if (this.state !== 'IDLE' || this.health <= 0) return;
 
-            // 碰撞檢測
+            this.state = 'ATTACK';
+            this.attackFrame = 10; // 攻擊持續 10 幀
+
+            // 判定範圍
             let target = this.isAI ? p1 : ai;
-            let hitX = this.facing === 1 ? this.position.x + this.width : this.position.x - 30;
-            
-            if (
-                hitX + 30 > target.position.x &&
-                hitX < target.position.x + target.width &&
-                this.position.y + 50 > target.position.y &&
-                this.position.y < target.position.y + target.height
-            ) {
-                target.takeDamage(10);
+            let hitRange = 60;
+            let dx = target.position.x - this.position.x;
+            let dy = target.position.y - this.position.y;
+
+            // 判斷方向與距離
+            if (Math.sign(dx) === this.facing && Math.abs(dx) < hitRange && Math.abs(dy) < 30) {
+                target.takeDamage(10, this.facing);
             }
 
-            setTimeout(() => { this.isAttacking = false; }, 150);
-            setTimeout(() => { this.attackCooldown = false; }, 500); // 攻擊冷卻 0.5 秒
+            setTimeout(() => {
+                if (this.state === 'ATTACK') this.state = 'IDLE';
+            }, 200);
         }
 
-        takeDamage(amt) {
-            this.health -= amt;
+        takeDamage(amt, direction) {
+            if (this.state === 'BLOCK') {
+                this.health -= amt * 0.2; // 格擋只受 20% 傷害
+                this.velocity.x = direction * 5; // 輕微後退
+            } else {
+                this.health -= amt;
+                this.state = 'HURT';
+                this.hitstun = 15; // 0.25秒硬直
+                this.velocity.x = direction * 15; // 強力擊退
+            }
+
             const barId = this.isAI ? 'p2Health' : 'p1Health';
             document.getElementById(barId).style.width = Math.max(0, this.health) + '%';
             if (this.health <= 0) endGame();
         }
     }
 
-    let p1 = new Fighter({ position: {x: 100, y: 300}, color: '#2b58de', isAI: false });
-    let ai = new Fighter({ position: {x: 600, y: 300}, color: '#d11d1d', isAI: true });
+    let p1 = new Fighter({ position: {x: 150, y: 250}, color: '#2b58de', isAI: false });
+    let ai = new Fighter({ position: {x: 600, y: 250}, color: '#d11d1d', isAI: true });
 
-    const keys = { w:0, a:0, s:0, d:0 };
+    const keys = { w:0, a:0, s:0, d:0, k:0 };
 
     window.addEventListener('keydown', (e) => {
+        if (!gameActive) return;
         if (e.key === 'w') keys.w = 1; if (e.key === 's') keys.s = 1;
         if (e.key === 'a') { keys.a = 1; p1.facing = -1; }
         if (e.key === 'd') { keys.d = 1; p1.facing = 1; }
+        if (e.key === 'k') { keys.k = 1; p1.state = 'BLOCK'; }
         if (e.key === 'j') p1.attack();
     });
+
     window.addEventListener('keyup', (e) => {
         if (e.key === 'w') keys.w = 0; if (e.key === 's') keys.s = 0;
         if (e.key === 'a') keys.a = 0; if (e.key === 'd') keys.d = 0;
+        if (e.key === 'k') { keys.k = 0; if(p1.state === 'BLOCK') p1.state = 'IDLE'; }
     });
 
     function runAI() {
-        if (!gameActive || ai.health <= 0) return;
+        if (!gameActive || ai.health <= 0 || ai.state === 'HURT') return;
 
         const dx = p1.position.x - ai.position.x;
         const dy = p1.position.y - ai.position.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
 
-        // AI 追蹤邏輯
-        ai.velocity.x = Math.abs(dx) > 40 ? (dx > 0 ? 2 : -2) : 0;
-        ai.velocity.y = Math.abs(dy) > 10 ? (dy > 0 ? 2 : -2) : 0;
-        ai.facing = dx > 0 ? 1 : -1;
-
-        // 隨機攻擊邏輯：如果距離夠近且隨機機率中，就攻擊
-        if (Math.abs(dx) < 60 && Math.abs(dy) < 30 && Math.random() < 0.05) {
-            ai.attack();
+        // AI 行為邏輯
+        if (p1.state === 'ATTACK' && dist < 80 && Math.random() < 0.3) {
+            ai.state = 'BLOCK'; // 30% 機率格擋玩家攻擊
+        } else if (dist > 50) {
+            if (ai.state === 'BLOCK') ai.state = 'IDLE';
+            ai.velocity.x = dx > 0 ? 2.5 : -2.5;
+            ai.velocity.y = dy > 0 ? 2.5 : -2.5;
+            ai.facing = dx > 0 ? 1 : -1;
+        } else {
+            if (Math.random() < 0.05) ai.attack();
         }
     }
 
     function resetGame() {
-        p1 = new Fighter({ position: {x: 100, y: 300}, color: '#2b58de', isAI: false });
-        ai = new Fighter({ position: {x: 600, y: 300}, color: '#d11d1d', isAI: true });
+        p1 = new Fighter({ position: {x: 150, y: 250}, color: '#2b58de', isAI: false });
+        ai = new Fighter({ position: {x: 600, y: 250}, color: '#d11d1d', isAI: true });
         document.getElementById('p1Health').style.width = '100%';
         document.getElementById('p2Health').style.width = '100%';
         restartBtn.style.display = 'none';
+        winDisplay.style.display = 'none';
         gameActive = true;
     }
 
     function endGame() {
         gameActive = false;
         restartBtn.style.display = 'block';
+        winDisplay.style.display = 'block';
+        winDisplay.innerText = p1.health <= 0 ? "AI WON!" : "PLAYER 1 WON!";
+        winDisplay.style.color = p1.health <= 0 ? "#ff4d4d" : "#4ef037";
     }
 
     function animate() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 繪製背景地圖
-        ctx.fillStyle = '#558833'; // 草地
+        // 地面
+        ctx.fillStyle = '#4a7a80';
         ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        for(let i=0; i<10; i++) { ctx.strokeRect(0, 200 + i*30, canvas.width, 1); }
 
         if (gameActive) {
-            p1.velocity.x = (keys.d - keys.a) * 4;
-            p1.velocity.y = (keys.s - keys.w) * 4;
+            if (p1.state === 'IDLE' || p1.state === 'WALK') {
+                p1.velocity.x = (keys.d - keys.a) * 4.5;
+                p1.velocity.y = (keys.s - keys.w) * 4.5;
+            }
             runAI();
-        } else {
-            p1.velocity = {x:0, y:0};
-            ai.velocity = {x:0, y:0};
-            ctx.fillStyle = "rgba(0,0,0,0.5)";
-            ctx.fillRect(0,0,canvas.width, canvas.height);
-            ctx.fillStyle = "white";
-            ctx.font = "40px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(p1.health <= 0 ? "AI 獲勝！" : "你贏了！", canvas.width/2, 180);
         }
 
         p1.update();
