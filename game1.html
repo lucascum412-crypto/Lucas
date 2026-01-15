@@ -2,69 +2,67 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>LF2 終極版 - 自定義按鍵與雙模式</title>
+    <title>LF2 終極格鬥 - 模式選擇版</title>
     <style>
-        body { margin: 0; background-color: #1a1a1a; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; overflow: hidden; }
-        #gameContainer { position: relative; border: 5px solid #333; background: #000; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        body { margin: 0; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; }
+        #gameContainer { position: relative; border: 5px solid #333; box-shadow: 0 0 50px rgba(0,0,0,0.8); background: #000; }
         canvas { background-color: #5d9ba3; display: block; }
-        
-        /* 選單畫面 */
-        #menu { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; }
-        .menu-title { font-size: 50px; color: #ffcc00; margin-bottom: 40px; text-shadow: 4px 4px 0 #8b0000; letter-spacing: 5px; }
-        .btn { padding: 15px 50px; font-size: 22px; cursor: pointer; background: #333; color: white; border: 2px solid #555; margin: 12px; border-radius: 5px; transition: 0.2s; width: 300px; font-weight: bold; }
-        .btn:hover { background: #ffcc00; color: #000; border-color: #fff; transform: scale(1.05); }
-        
+
+        /* 選單樣式 */
+        #mainMenu { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .title { font-size: 50px; color: #ffcc00; margin-bottom: 30px; text-shadow: 4px 4px 0 #8b0000; letter-spacing: 5px; }
+        .mode-btn { padding: 15px 50px; font-size: 22px; cursor: pointer; background: #333; color: white; border: 2px solid #555; margin: 10px; border-radius: 8px; transition: 0.2s; width: 300px; font-weight: bold; }
+        .mode-btn:hover { background: #ffcc00; color: #000; border-color: #fff; transform: scale(1.05); }
+
         /* 戰鬥 UI */
-        .ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
-        .health-box { width: 300px; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 5px; border-bottom: 4px solid #2b58de; }
-        .health-box.p2 { border-bottom: 4px solid #d11d1d; text-align: right; }
-        .bar-bg { width: 100%; height: 20px; background: #300; border: 1px solid #555; margin-top: 5px; position: relative; }
+        .ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; pointer-events: none; visibility: hidden; }
+        .health-box { width: 300px; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 5px; border-top: 4px solid #2b58de; }
+        .health-box.p2 { border-top: 4px solid #d11d1d; text-align: right; }
+        .bar-bg { width: 100%; height: 20px; background: #300; border: 1px solid #555; margin-top: 5px; }
         .bar-fill { height: 100%; background: linear-gradient(90deg, #4ef037, #228b22); width: 100%; transition: width 0.2s; }
         .shield-dots { display: flex; gap: 4px; margin-top: 8px; justify-content: inherit; }
         .dot { width: 15px; height: 8px; background: #ffcc00; border-radius: 2px; box-shadow: 0 0 5px rgba(255,204,0,0.5); }
         
-        #restartBtn { position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); padding: 15px 40px; font-size: 20px; cursor: pointer; background: #ffcc00; border: none; font-weight: bold; display: none; z-index: 100; border-radius: 5px; }
-        #status { position: absolute; bottom: 15px; background: rgba(0,0,0,0.8); padding: 10px 30px; border-radius: 5px; font-size: 14px; display: none; border: 1px solid #444; }
-        .win-text { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 60px; font-weight: bold; display: none; z-index: 10; text-align: center; text-shadow: 0 0 20px rgba(0,0,0,1); }
-        .key { color: #ffcc00; font-weight: bold; background: #333; padding: 1px 5px; border-radius: 3px; }
+        #restartBtn { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); padding: 15px 40px; font-size: 20px; cursor: pointer; background: #fff; border: none; font-weight: bold; display: none; z-index: 50; border-radius: 5px; }
+        #status { position: absolute; bottom: 15px; background: rgba(0,0,0,0.8); padding: 8px 25px; border-radius: 5px; font-size: 13px; visibility: hidden; border: 1px solid #444; }
+        .win-text { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 60px; font-weight: bold; display: none; z-index: 10; text-shadow: 0 0 20px #000; text-align: center; }
+        .key-hint { color: #ffcc00; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="gameContainer">
-    <div id="menu">
-        <div class="menu-title">LF2 MINI ARENA</div>
-        <button class="btn" onclick="startGame('single')">單人對戰 (VS AI)</button>
-        <button class="btn" onclick="startGame('pvp')">雙人對戰 (PVP)</button>
+    <div id="mainMenu">
+        <div class="title">LITTLE FIGHTER 2.5</div>
+        <button class="mode-btn" onclick="initGame('single')">單人對戰 (VS AI)</button>
+        <button class="mode-btn" onclick="initGame('pvp')">雙人對戰 (Local PVP)</button>
     </div>
 
     <div class="ui-layer" id="gameUI">
         <div class="health-box">
-            <div>P1 武術家 (藍)</div>
+            <div>P1: 藍色武術家</div>
             <div class="bar-bg"><div id="p1Health" class="bar-fill"></div></div>
             <div class="shield-dots" id="p1Shield">
                 <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
             </div>
-            <div style="font-size: 10px; margin-top:5px; color:#0ff">破防技 READY</div>
         </div>
         <div class="health-box p2">
-            <div id="p2Title">P2 忍者 (紅)</div>
+            <div id="p2Name">P2: 紅色忍者</div>
             <div class="bar-bg"><div id="p2Health" class="bar-fill" style="background: linear-gradient(90deg, #ff4d4d, #b30000);"></div></div>
             <div class="shield-dots" id="p2Shield">
                 <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
             </div>
-            <div style="font-size: 10px; margin-top:5px; color:#0ff">破防技 READY</div>
         </div>
     </div>
 
     <div id="winDisplay" class="win-text"></div>
-    <button id="restartBtn" onclick="location.reload()">返回主選單</button>
+    <button id="restartBtn" onclick="location.reload()">返回選單</button>
     
     <canvas id="gameCanvas" width="900" height="450"></canvas>
     
     <div id="status">
-        P1: <span class="key">WASD</span> 移動 | <span class="key">Z</span> 攻 | <span class="key">X</span> 擋 | <span class="key">C</span> 破防 <span style="margin: 0 20px;">||</span>
-        P2: <span class="key">↑↓←→</span> 移動 | <span class="key">J</span> 攻 | <span class="key">K</span> 擋 | <span class="key">L</span> 破防
+        P1: <span class="key-hint">WASD</span> 移動 | <span class="key-hint">Z</span> 攻 | <span class="key-hint">X</span> 擋 | <span class="key-hint">C</span> 破防 <br>
+        P2: <span class="key-hint">方向鍵</span> 移動 | <span class="key-hint">J</span> 攻 | <span class="key-hint">K</span> 擋 | <span class="key-hint">L</span> 破防
     </div>
 </div>
 
@@ -73,6 +71,7 @@
     const ctx = canvas.getContext('2d');
     const keys = {};
     let gameActive = false;
+    let isSinglePlayer = true;
 
     class Fighter {
         constructor({position, color, id, isAI}) {
@@ -84,17 +83,17 @@
             this.color = color;
             this.isAI = isAI;
             this.health = 100;
-            this.state = 'IDLE'; // IDLE, ATTACK, SKILL, HURT, BLOCK, STUNNED
+            this.state = 'IDLE'; // IDLE, ATTACK, BREAK, HURT, BLOCK, STUNNED
             this.facing = id === 1 ? 1 : -1;
             this.hitstun = 0;
             this.stunTimer = 0;
             this.shieldHP = 5;
-            this.skillCD = 0;
+            this.skillCD = 0; // 破防技 3秒冷卻 (180幀)
         }
 
         draw() {
             const {x, y} = this.position;
-            // 影子
+            // 陰影
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
             ctx.beginPath(); ctx.ellipse(x + 25, y + 80, 25, 8, 0, 0, Math.PI*2); ctx.fill();
 
@@ -104,16 +103,16 @@
             else if (this.state === 'BLOCK') ctx.fillStyle = '#FFD700'; // 格擋金
             else ctx.fillStyle = this.color;
 
-            // 身體與頭部
+            // 身體與頭
             ctx.fillRect(x + 10, y + 25, 30, 40);
             ctx.fillStyle = '#ffdbac';
             ctx.fillRect(x + 15, y, 20, 25);
 
-            // 手部
+            // 手部動作
             ctx.fillStyle = (this.state === 'BLOCK') ? '#FFD700' : this.color;
             if (this.state === 'ATTACK') {
                 ctx.fillRect(this.facing === 1 ? x + 35 : x - 15, y + 30, 30, 15);
-            } else if (this.state === 'SKILL') {
+            } else if (this.state === 'BREAK') {
                 ctx.fillStyle = '#00ffff'; // 破防藍光
                 ctx.fillRect(this.facing === 1 ? x + 35 : x - 25, y + 20, 40, 30);
             } else if (this.state === 'BLOCK') {
@@ -125,23 +124,14 @@
         update() {
             if (this.health <= 0) return;
             
-            // 處理暈眩
             if (this.stunTimer > 0) {
                 this.stunTimer--;
-                if (this.stunTimer === 0) { 
-                    this.state = 'IDLE'; 
-                    this.shieldHP = 5; 
-                    this.updateShieldUI(); 
-                }
+                if (this.stunTimer === 0) { this.state = 'IDLE'; this.shieldHP = 5; this.updateShieldUI(); }
             }
-
-            // 處理受傷硬直
             if (this.hitstun > 0) {
                 this.hitstun--;
                 if (this.hitstun === 0 && this.state !== 'STUNNED') this.state = 'IDLE';
             }
-
-            // 技能冷卻
             if (this.skillCD > 0) this.skillCD--;
 
             this.draw();
@@ -150,46 +140,44 @@
                 this.position.x += this.velocity.x;
                 this.position.y += this.velocity.y;
             }
-            
             this.velocity.x *= 0.8;
             this.velocity.y *= 0.8;
 
-            // 邊界
             this.position.y = Math.max(180, Math.min(canvas.height - 90, this.position.y));
             this.position.x = Math.max(0, Math.min(canvas.width - 50, this.position.x));
         }
 
-        attack(target) {
+        performAttack(target) {
             if (this.state !== 'IDLE' || this.health <= 0) return;
             this.state = 'ATTACK';
             this.checkHit(target, 10, false);
             setTimeout(() => { if(this.state === 'ATTACK') this.state = 'IDLE'; }, 200);
         }
 
-        guardBreak(target) {
+        performBreak(target) {
             if (this.state !== 'IDLE' || this.skillCD > 0 || this.health <= 0) return;
-            this.state = 'SKILL';
-            this.skillCD = 180; // 3秒 (60fps * 3)
+            this.state = 'BREAK';
+            this.skillCD = 180; // 3秒
             this.checkHit(target, 15, true);
-            setTimeout(() => { if(this.state === 'SKILL') this.state = 'IDLE'; }, 400);
+            setTimeout(() => { if(this.state === 'BREAK') this.state = 'IDLE'; }, 400);
         }
 
         checkHit(target, damage, isBreakSkill) {
             const dx = target.position.x - this.position.x;
             const dy = target.position.y - this.position.y;
             if (Math.sign(dx) === this.facing && Math.abs(dx) < 75 && Math.abs(dy) < 35) {
-                target.takeDamage(damage, this.facing, isBreakSkill);
+                target.receiveHit(damage, this.facing, isBreakSkill);
             }
         }
 
-        takeDamage(amt, direction, isBreakSkill) {
+        receiveHit(amt, direction, isBreakSkill) {
             if (this.state === 'BLOCK' && !isBreakSkill) {
                 this.shieldHP--;
                 this.updateShieldUI();
                 this.velocity.x = direction * 5;
                 if (this.shieldHP <= 0) this.triggerStun();
             } else if (isBreakSkill && this.state === 'BLOCK') {
-                this.triggerStun(); // 破防技打中格擋直接暈
+                this.triggerStun(); // 直接破防
                 this.health -= amt;
             } else {
                 this.health -= amt;
@@ -198,7 +186,7 @@
                 this.velocity.x = direction * 12;
             }
             document.getElementById(`p${this.id}Health`).style.width = Math.max(0, this.health) + '%';
-            if (this.health <= 0) endGame(this.id === 1 ? 2 : 1);
+            if (this.health <= 0) finishGame(this.id === 1 ? 2 : 1);
         }
 
         triggerStun() {
@@ -216,102 +204,37 @@
 
     let p1, p2;
 
-    function startGame(mode) {
-        document.getElementById('menu').style.display = 'none';
-        document.getElementById('gameUI').style.opacity = '1';
-        document.getElementById('status').style.display = 'block';
+    function initGame(mode) {
+        isSinglePlayer = (mode === 'single');
+        document.getElementById('mainMenu').style.display = 'none';
+        document.getElementById('gameUI').style.visibility = 'visible';
+        document.getElementById('status').style.visibility = 'visible';
         
         p1 = new Fighter({ position: {x: 150, y: 280}, color: '#2b58de', id: 1, isAI: false });
-        p2 = new Fighter({ position: {x: 700, y: 280}, color: '#d11d1d', id: 2, isAI: (mode === 'single') });
+        p2 = new Fighter({ position: {x: 700, y: 280}, color: '#d11d1d', id: 2, isAI: isSinglePlayer });
         
-        if (mode === 'single') document.getElementById('p2Title').innerText = "AI 忍者";
+        if (isSinglePlayer) document.getElementById('p2Name').innerText = "AI 忍者";
         
         gameActive = true;
-        animate();
+        updateLoop();
     }
 
-    function runAILogic() {
+    function runAI() {
         if (!gameActive || !p2.isAI || p2.state === 'STUNNED' || p2.state === 'HURT') return;
         const dx = p1.position.x - p2.position.x;
         const dy = p1.position.y - p2.position.y;
-        const dist = Math.abs(dx);
-
-        if (p1.state === 'ATTACK' && dist < 80 && Math.random() < 0.2) {
-            p2.state = 'BLOCK';
-        } else if (dist > 60) {
-            if (p2.state === 'BLOCK') p2.state = 'IDLE';
+        
+        if (Math.abs(dx) > 65) {
             p2.velocity.x = dx > 0 ? 3 : -3;
             p2.velocity.y = dy > 0 ? 3 : -3;
             p2.facing = dx > 0 ? 1 : -1;
+            if (p2.state === 'BLOCK') p2.state = 'IDLE';
         } else {
-            if (Math.random() < 0.05) p2.attack(p1);
-            if (p1.state === 'BLOCK' && Math.random() < 0.02) p2.guardBreak(p1);
+            if (Math.random() < 0.05) p2.performAttack(p1);
+            if (p1.state === 'BLOCK' && Math.random() < 0.02) p2.performBreak(p1);
+            if (p1.state === 'ATTACK' && Math.random() < 0.1) p2.state = 'BLOCK';
         }
     }
 
     window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
-    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
-
-    function handleInput() {
-        if (!gameActive) return;
-
-        // P1 控制 (Z, X, C)
-        if (p1.state === 'IDLE' || p1.state === 'BLOCK') {
-            if (keys['w']) p1.velocity.y = -5; if (keys['s']) p1.velocity.y = 5;
-            if (keys['a']) { p1.velocity.x = -5; p1.facing = -1; }
-            if (keys['d']) { p1.velocity.x = 5; p1.facing = 1; }
-            
-            if (keys['z']) p1.attack(p2);
-            if (keys['c']) p1.guardBreak(p2);
-            
-            if (keys['x']) p1.state = 'BLOCK';
-            else if (p1.state === 'BLOCK') p1.state = 'IDLE';
-        }
-
-        // P2 控制 (J, K, L)
-        if (!p2.isAI) {
-            if (p2.state === 'IDLE' || p2.state === 'BLOCK') {
-                if (keys['arrowup']) p2.velocity.y = -5; if (keys['arrowdown']) p2.velocity.y = 5;
-                if (keys['arrowleft']) { p2.velocity.x = -5; p2.facing = -1; }
-                if (keys['arrowright']) { p2.velocity.x = 5; p2.facing = 1; }
-                
-                if (keys['j']) p2.attack(p1);
-                if (keys['l']) p2.guardBreak(p1);
-                
-                if (keys['k']) p2.state = 'BLOCK';
-                else if (p2.state === 'BLOCK') p2.state = 'IDLE';
-            }
-        }
-    }
-
-    function endGame(winnerId) {
-        gameActive = false;
-        const winDisplay = document.getElementById('winDisplay');
-        winDisplay.style.display = 'block';
-        winDisplay.innerText = winnerId === 1 ? "PLAYER 1 WIN!" : (p2.isAI ? "AI WIN!" : "PLAYER 2 WIN!");
-        winDisplay.style.color = winnerId === 1 ? "#4ef037" : "#ff4d4d";
-        document.getElementById('restartBtn').style.display = 'block';
-    }
-
-    function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 地面
-        ctx.fillStyle = '#4a7a80'; 
-        ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-        for(let i=0; i<10; i++) ctx.strokeRect(0, 200 + i*30, canvas.width, 1);
-
-        if (gameActive) {
-            handleInput();
-            if (p2.isAI) runAILogic();
-        }
-        
-        p1.update();
-        p2.update();
-        requestAnimationFrame(animate);
-    }
-</script>
-
-</body>
-</html>
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false;
