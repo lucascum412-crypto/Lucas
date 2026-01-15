@@ -2,276 +2,212 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>簡易版 LF2 原型</title>
+    <title>LF2 復刻版 - AI 對戰</title>
     <style>
-        body {
-            margin: 0;
-            background-color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-        #gameContainer {
-            position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-        canvas {
-            background-color: #87CEEB; /* 模擬天空/背景 */
-            border-bottom: 20px solid #45a049; /* 地面 */
-            display: block;
-        }
-        .ui-layer {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            width: 95%;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-        }
-        .health-bar-container {
-            width: 200px;
-            height: 20px;
-            background: #555;
-            border: 2px solid #000;
-        }
-        .health-bar {
-            height: 100%;
-            background: limegreen;
-            width: 100%;
-            transition: width 0.1s;
-        }
-        #controls {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            font-size: 12px;
-            color: #333;
-            background: rgba(255,255,255,0.7);
-            padding: 5px;
-        }
+        body { margin: 0; background-color: #222; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        #gameContainer { position: relative; border: 4px solid #444; }
+        canvas { background-color: #70c5ce; display: block; cursor: crosshair; }
+        .ui-layer { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; pointer-events: none; }
+        .health-box { width: 220px; background: rgba(0,0,0,0.6); padding: 5px; border-radius: 5px; }
+        .bar-bg { width: 100%; height: 15px; background: #440000; border: 1px solid #fff; margin-top: 5px; }
+        .bar-fill { height: 100%; background: linear-gradient(to bottom, #00ff00, #008800); width: 100%; transition: width 0.2s; }
+        #restartBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 15px 30px; font-size: 20px; cursor: pointer; background: #ffcc00; border: none; border-radius: 5px; font-weight: bold; display: none; pointer-events: auto; }
+        #restartBtn:hover { background: #ffaa00; }
+        #status { position: absolute; bottom: 20px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div id="gameContainer">
     <div class="ui-layer">
-        <div>
-            <div>P1 (藍色)</div>
-            <div class="health-bar-container"><div id="p1Health" class="health-bar"></div></div>
+        <div class="health-box">
+            <div>P1: 藍色武術家</div>
+            <div class="bar-bg"><div id="p1Health" class="bar-fill"></div></div>
         </div>
-        <div>
-            <div>P2 (紅色)</div>
-            <div class="health-bar-container"><div id="p2Health" class="health-bar"></div></div>
+        <div class="health-box">
+            <div>AI: 紅色忍者</div>
+            <div class="bar-bg"><div id="p2Health" class="bar-fill" style="background: linear-gradient(to bottom, #ff3333, #880000);"></div></div>
         </div>
     </div>
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <div id="controls">
-        P1: WASD 移動, F 攻擊 | P2: 方向鍵 移動, L 攻擊
-    </div>
+    <button id="restartBtn" onclick="resetGame()">重新開始遊戲</button>
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
+    <div id="status">P1: WASD 移動, J 攻擊 | AI 自動戰鬥中</div>
 </div>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const restartBtn = document.getElementById('restartBtn');
 
-    // 遊戲常數
-    const GRAVITY = 0; // LF2 是 2.5D，通常沒有重力加速度讓角色往下掉，除非跳躍（此範例簡化不含跳躍）
-    const SPEED = 4;
+    let gameActive = true;
 
     class Fighter {
-        constructor({position, velocity, color, offset, attackKey}) {
+        constructor({position, color, isAI}) {
             this.position = position;
-            this.velocity = velocity;
+            this.velocity = { x: 0, y: 0 };
             this.width = 50;
-            this.height = 80; // 模擬站立高度
+            this.height = 80;
             this.color = color;
-            this.isAttacking = false;
+            this.isAI = isAI;
             this.health = 100;
-            this.attackBox = {
-                position: { x: this.position.x, y: this.position.y },
-                offset: offset,
-                width: 80, // 攻擊距離
-                height: 50
-            };
-            this.dead = false;
+            this.isAttacking = false;
+            this.facing = isAI ? -1 : 1; // 1 向右, -1 向左
+            this.attackCooldown = false;
         }
 
+        // 繪製皮膚 (像素風格小人)
         draw() {
-            // 繪製角色
+            const {x, y} = this.position;
+            
+            // 陰影
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath(); ctx.ellipse(x + 25, y + 80, 20, 7, 0, 0, Math.PI*2); ctx.fill();
+
+            // 身體
             ctx.fillStyle = this.color;
-            ctx.fillRect(this.position.x, this.position.y, this.width, this.height);
+            ctx.fillRect(x + 10, y + 25, 30, 40); // 軀幹
+            
+            // 頭部
+            ctx.fillStyle = '#ffdbac'; // 膚色
+            ctx.fillRect(x + 15, y, 20, 25);
+            ctx.fillStyle = this.isAI ? '#333' : '#222'; // 頭髮或面罩
+            ctx.fillRect(x + 15, y, 20, 8);
 
-            // 繪製影子 (增加立體感)
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.beginPath();
-            ctx.ellipse(this.position.x + this.width/2, this.position.y + this.height, 20, 5, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // 攻擊時顯示攻擊範圍 (Hitbox) - 用於除錯和視覺回饋
+            // 手部 (根據朝向)
+            ctx.fillStyle = this.color;
             if (this.isAttacking) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                ctx.fillRect(
-                    this.attackBox.position.x, 
-                    this.attackBox.position.y, 
-                    this.attackBox.width, 
-                    this.attackBox.height
-                );
+                ctx.fillRect(this.facing === 1 ? x + 35 : x - 15, y + 30, 30, 15);
+            } else {
+                ctx.fillRect(x + 5, y + 30, 10, 25);
+                ctx.fillRect(x + 35, y + 30, 10, 25);
             }
+
+            // 腿部
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x + 10, y + 65, 12, 15);
+            ctx.fillRect(x + 28, y + 65, 12, 15);
         }
 
         update() {
+            if (this.health <= 0) return;
             this.draw();
             
-            // 更新位置
             this.position.x += this.velocity.x;
             this.position.y += this.velocity.y;
 
-            // 邊界限制
-            if (this.position.y < 100) this.position.y = 100; // 天際線
-            if (this.position.y + this.height > canvas.height) this.position.y = canvas.height - this.height;
+            // 限制地圖範圍 (2.5D 地板)
+            if (this.position.y < 200) this.position.y = 200;
+            if (this.position.y > canvas.height - 90) this.position.y = canvas.height - 90;
             if (this.position.x < 0) this.position.x = 0;
-            if (this.position.x + this.width > canvas.width) this.position.x = canvas.width - this.width;
-
-            // 更新攻擊框位置 (跟隨角色)
-            this.attackBox.position.x = this.position.x + this.attackBox.offset.x;
-            this.attackBox.position.y = this.position.y + 10; // 稍微調整高度
+            if (this.position.x > canvas.width - 50) this.position.x = canvas.width - 50;
         }
 
         attack() {
-            if(!this.dead) {
-                this.isAttacking = true;
-                setTimeout(() => {
-                    this.isAttacking = false;
-                }, 100); // 攻擊持續 100ms
+            if (this.attackCooldown || this.health <= 0) return;
+            this.isAttacking = true;
+            this.attackCooldown = true;
+
+            // 碰撞檢測
+            let target = this.isAI ? p1 : ai;
+            let hitX = this.facing === 1 ? this.position.x + this.width : this.position.x - 30;
+            
+            if (
+                hitX + 30 > target.position.x &&
+                hitX < target.position.x + target.width &&
+                this.position.y + 50 > target.position.y &&
+                this.position.y < target.position.y + target.height
+            ) {
+                target.takeDamage(10);
             }
+
+            setTimeout(() => { this.isAttacking = false; }, 150);
+            setTimeout(() => { this.attackCooldown = false; }, 500); // 攻擊冷卻 0.5 秒
+        }
+
+        takeDamage(amt) {
+            this.health -= amt;
+            const barId = this.isAI ? 'p2Health' : 'p1Health';
+            document.getElementById(barId).style.width = Math.max(0, this.health) + '%';
+            if (this.health <= 0) endGame();
         }
     }
 
-    // 創建玩家
-    const player = new Fighter({
-        position: { x: 100, y: 200 },
-        velocity: { x: 0, y: 0 },
-        color: 'blue',
-        offset: { x: 0, y: 0 }
+    let p1 = new Fighter({ position: {x: 100, y: 300}, color: '#2b58de', isAI: false });
+    let ai = new Fighter({ position: {x: 600, y: 300}, color: '#d11d1d', isAI: true });
+
+    const keys = { w:0, a:0, s:0, d:0 };
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'w') keys.w = 1; if (e.key === 's') keys.s = 1;
+        if (e.key === 'a') { keys.a = 1; p1.facing = -1; }
+        if (e.key === 'd') { keys.d = 1; p1.facing = 1; }
+        if (e.key === 'j') p1.attack();
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'w') keys.w = 0; if (e.key === 's') keys.s = 0;
+        if (e.key === 'a') keys.a = 0; if (e.key === 'd') keys.d = 0;
     });
 
-    const enemy = new Fighter({
-        position: { x: 600, y: 200 },
-        velocity: { x: 0, y: 0 },
-        color: 'red',
-        offset: { x: -30, y: 0 } // 攻擊框向左
-    });
+    function runAI() {
+        if (!gameActive || ai.health <= 0) return;
 
-    const keys = {
-        a: { pressed: false },
-        d: { pressed: false },
-        w: { pressed: false },
-        s: { pressed: false },
-        ArrowRight: { pressed: false },
-        ArrowLeft: { pressed: false },
-        ArrowUp: { pressed: false },
-        ArrowDown: { pressed: false }
-    };
+        const dx = p1.position.x - ai.position.x;
+        const dy = p1.position.y - ai.position.y;
 
-    // 碰撞檢測函數 (Axis-Aligned Bounding Box)
-    function rectangularCollision({ rectangle1, rectangle2 }) {
-        return (
-            rectangle1.attackBox.position.x + rectangle1.attackBox.width >= rectangle2.position.x &&
-            rectangle1.attackBox.position.x <= rectangle2.position.x + rectangle2.width &&
-            rectangle1.attackBox.position.y + rectangle1.attackBox.height >= rectangle2.position.y &&
-            rectangle1.attackBox.position.y <= rectangle2.position.y + rectangle2.height
-        );
+        // AI 追蹤邏輯
+        ai.velocity.x = Math.abs(dx) > 40 ? (dx > 0 ? 2 : -2) : 0;
+        ai.velocity.y = Math.abs(dy) > 10 ? (dy > 0 ? 2 : -2) : 0;
+        ai.facing = dx > 0 ? 1 : -1;
+
+        // 隨機攻擊邏輯：如果距離夠近且隨機機率中，就攻擊
+        if (Math.abs(dx) < 60 && Math.abs(dy) < 30 && Math.random() < 0.05) {
+            ai.attack();
+        }
+    }
+
+    function resetGame() {
+        p1 = new Fighter({ position: {x: 100, y: 300}, color: '#2b58de', isAI: false });
+        ai = new Fighter({ position: {x: 600, y: 300}, color: '#d11d1d', isAI: true });
+        document.getElementById('p1Health').style.width = '100%';
+        document.getElementById('p2Health').style.width = '100%';
+        restartBtn.style.display = 'none';
+        gameActive = true;
+    }
+
+    function endGame() {
+        gameActive = false;
+        restartBtn.style.display = 'block';
     }
 
     function animate() {
-        window.requestAnimationFrame(animate);
-        ctx.fillStyle = '#87CEEB'; // 清除畫面並重繪背景
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 簡單的透視背景 (地板)
-        ctx.fillStyle = '#654321'; // 土壤色
-        ctx.fillRect(0, 150, canvas.width, canvas.height); 
+        // 繪製背景地圖
+        ctx.fillStyle = '#558833'; // 草地
+        ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
 
-        player.update();
-        enemy.update();
-
-        // 玩家 1 移動邏輯
-        player.velocity.x = 0;
-        player.velocity.y = 0;
-        if (keys.a.pressed) { player.velocity.x = -SPEED; player.attackBox.offset.x = -30; } // 向左攻擊框調整
-        else if (keys.d.pressed) { player.velocity.x = SPEED; player.attackBox.offset.x = 0; } // 向右
-        if (keys.w.pressed) player.velocity.y = -SPEED;
-        else if (keys.s.pressed) player.velocity.y = SPEED;
-
-        // 玩家 2 移動邏輯
-        enemy.velocity.x = 0;
-        enemy.velocity.y = 0;
-        if (keys.ArrowLeft.pressed) { enemy.velocity.x = -SPEED; enemy.attackBox.offset.x = -30;}
-        else if (keys.ArrowRight.pressed) { enemy.velocity.x = SPEED; enemy.attackBox.offset.x = 0;}
-        if (keys.ArrowUp.pressed) enemy.velocity.y = -SPEED;
-        else if (keys.ArrowDown.pressed) enemy.velocity.y = SPEED;
-
-        // 檢測 P1 攻擊 P2
-        if (
-            rectangularCollision({ rectangle1: player, rectangle2: enemy }) &&
-            player.isAttacking
-        ) {
-            player.isAttacking = false; // 命中後重置，避免一擊多判
-            enemy.health -= 10;
-            document.getElementById('p2Health').style.width = enemy.health + '%';
-            if(enemy.health <= 0) { enemy.dead = true; enemy.color = 'gray'; }
+        if (gameActive) {
+            p1.velocity.x = (keys.d - keys.a) * 4;
+            p1.velocity.y = (keys.s - keys.w) * 4;
+            runAI();
+        } else {
+            p1.velocity = {x:0, y:0};
+            ai.velocity = {x:0, y:0};
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "40px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(p1.health <= 0 ? "AI 獲勝！" : "你贏了！", canvas.width/2, 180);
         }
 
-        // 檢測 P2 攻擊 P1
-        if (
-            rectangularCollision({ rectangle1: enemy, rectangle2: player }) &&
-            enemy.isAttacking
-        ) {
-            enemy.isAttacking = false;
-            player.health -= 10;
-            document.getElementById('p1Health').style.width = player.health + '%';
-            if(player.health <= 0) { player.dead = true; player.color = 'gray'; }
-        }
+        p1.update();
+        ai.update();
+
+        requestAnimationFrame(animate);
     }
 
     animate();
-
-    // 鍵盤監聽
-    window.addEventListener('keydown', (event) => {
-        if (player.dead || enemy.dead) return; // 遊戲結束不能動
-
-        switch (event.key) {
-            case 'd': keys.d.pressed = true; break;
-            case 'a': keys.a.pressed = true; break;
-            case 'w': keys.w.pressed = true; break;
-            case 's': keys.s.pressed = true; break;
-            case 'f': player.attack(); break; // P1 攻擊
-
-            case 'ArrowRight': keys.ArrowRight.pressed = true; break;
-            case 'ArrowLeft': keys.ArrowLeft.pressed = true; break;
-            case 'ArrowUp': keys.ArrowUp.pressed = true; break;
-            case 'ArrowDown': keys.ArrowDown.pressed = true; break;
-            case 'l': enemy.attack(); break; // P2 攻擊
-        }
-    });
-
-    window.addEventListener('keyup', (event) => {
-        switch (event.key) {
-            case 'd': keys.d.pressed = false; break;
-            case 'a': keys.a.pressed = false; break;
-            case 'w': keys.w.pressed = false; break;
-            case 's': keys.s.pressed = false; break;
-
-            case 'ArrowRight': keys.ArrowRight.pressed = false; break;
-            case 'ArrowLeft': keys.ArrowLeft.pressed = false; break;
-            case 'ArrowUp': keys.ArrowUp.pressed = false; break;
-            case 'ArrowDown': keys.ArrowDown.pressed = false; break;
-        }
-    });
 </script>
 
 </body>
