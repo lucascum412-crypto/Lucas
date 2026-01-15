@@ -2,347 +2,424 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>HTML5 Pac-Man</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>簡易版 Survivor.io (HTML5)</title>
     <style>
         body {
+            margin: 0;
+            overflow: hidden;
             background-color: #222;
             color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-        h1 { margin-bottom: 10px; }
-        #game-container {
-            position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            height: 100vh;
         }
         canvas {
-            background-color: black;
-            border: 4px solid #333;
-            border-radius: 5px;
-            display: block;
+            background-color: #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 2px solid #555;
         }
         #ui-layer {
-            margin-top: 10px;
-            font-size: 20px;
-            display: flex;
-            justify-content: space-between;
-            width: 400px;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
         }
-        #status { font-weight: bold; color: yellow; }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px;
+            text-align: center;
+            border-radius: 10px;
+            display: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        button:hover { background: #45a049; }
     </style>
 </head>
 <body>
 
-    <h1>Pac-Man HTML5</h1>
-    
-    <div id="game-container">
-        <canvas id="gameCanvas" width="400" height="400"></canvas>
-    </div>
-
     <div id="ui-layer">
-        <div>分數: <span id="score">0</span></div>
-        <div id="status">按任意方向鍵開始</div>
+        <h2>等級: <span id="level-display">1</span></h2>
+        <p>經驗值: <span id="xp-display">0</span> / <span id="next-level-xp">10</span></p>
+        <p>生命值: <span id="hp-display">100</span></p>
+        <p>得分: <span id="score-display">0</span></p>
     </div>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreEl = document.getElementById('score');
-        const statusEl = document.getElementById('status');
+    <canvas id="gameCanvas"></canvas>
 
-        // 遊戲設定
-        const TILE_SIZE = 20;
-        const ROWS = 20;
-        const COLS = 20;
-        const PACMAN_SPEED = 2; // 每幀移動像素
-        const GHOST_SPEED = 1;
+    <div id="game-over">
+        <h1>遊戲結束</h1>
+        <p>最終得分: <span id="final-score">0</span></p>
+        <button onclick="restartGame()">重新開始</button>
+    </div>
 
-        // 1=牆壁, 0=豆子, 2=空地(已吃), 3=小精靈起始點, 9=鬼魂
-        // 簡單的地圖設計 (20x20)
-        const mapLayout = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
-            [1,0,1,1,1,0,1,1,0,1,0,1,1,0,1,1,1,1,0,1],
-            [1,0,1,1,1,0,1,1,0,1,0,1,1,0,1,1,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,0,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,1,0,1],
-            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
-            [1,1,1,1,0,1,1,1,2,1,2,1,1,1,1,0,1,1,1,1],
-            [1,2,2,2,0,1,2,2,2,9,2,2,2,1,0,2,2,2,2,1],
-            [1,1,1,1,0,1,2,1,1,2,1,1,2,1,0,1,1,1,1,1],
-            [1,0,0,0,0,0,0,1,2,2,2,1,0,0,0,0,0,0,0,1],
-            [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,0,1],
-            [1,0,0,1,0,1,0,0,0,3,0,0,0,1,0,1,0,0,0,1],
-            [1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1],
-            [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
-            [1,0,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-        ];
+<script>
+    // --- 1. 初始化設置 ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 設定畫布大小
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-        // 修正地圖行數以符合 Tile Size
-        // 如果地圖行數不足，會自動補空，這裡為了示範簡單化
+    // 遊戲狀態
+    let gameState = 'playing'; // playing, gameover
+    let score = 0;
+    let frames = 0;
 
-        let map = [];
-        let score = 0;
-        let gameActive = false;
-        let win = false;
-        
-        // 角色物件
-        let pacman = { x: 0, y: 0, dx: 0, dy: 0, nextDx: 0, nextDy: 0, mouthOpen: 0, mouthSpeed: 0.2 };
-        let ghosts = [];
+    // --- 2. 遊戲實體類別 ---
 
-        function initGame() {
-            score = 0;
-            scoreEl.innerText = score;
-            gameActive = true;
-            win = false;
-            statusEl.innerText = "遊戲進行中";
-            statusEl.style.color = "#0f0";
-            
-            ghosts = [];
-            map = JSON.parse(JSON.stringify(mapLayout)); // 深拷貝地圖
+    // 玩家
+    const player = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 15,
+        color: '#4db8ff',
+        speed: 4,
+        hp: 100,
+        maxHp: 100,
+        level: 1,
+        xp: 0,
+        nextLevelXp: 10,
+        damage: 10
+    };
 
-            // 解析地圖並初始化位置
-            for (let r = 0; r < map.length; r++) {
-                for (let c = 0; c < map[r].length; c++) {
-                    if (map[r][c] === 3) {
-                        pacman.x = c * TILE_SIZE + TILE_SIZE / 2;
-                        pacman.y = r * TILE_SIZE + TILE_SIZE / 2;
-                        pacman.dx = 0; 
-                        pacman.dy = 0;
-                        pacman.nextDx = 0;
-                        pacman.nextDy = 0;
-                        map[r][c] = 2; // 設為空地
-                    } else if (map[r][c] === 9) {
-                        ghosts.push({
-                            x: c * TILE_SIZE + TILE_SIZE / 2,
-                            y: r * TILE_SIZE + TILE_SIZE / 2,
-                            dx: 0, dy: 0,
-                            color: ghosts.length === 0 ? 'red' : 'pink'
-                        });
-                        map[r][c] = 2;
-                    }
-                }
+    // 陣列儲存物件
+    let enemies = [];
+    let bullets = [];
+    let expGems = [];
+    let damageTexts = [];
+
+    // 輸入控制
+    const keys = { w: false, a: false, s: false, d: false };
+    
+    window.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase();
+        if (keys.hasOwnProperty(key)) keys[key] = true;
+        // 支援方向鍵
+        if (e.key === 'ArrowUp') keys.w = true;
+        if (e.key === 'ArrowLeft') keys.a = true;
+        if (e.key === 'ArrowDown') keys.s = true;
+        if (e.key === 'ArrowRight') keys.d = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const key = e.key.toLowerCase();
+        if (keys.hasOwnProperty(key)) keys[key] = false;
+        if (e.key === 'ArrowUp') keys.w = false;
+        if (e.key === 'ArrowLeft') keys.a = false;
+        if (e.key === 'ArrowDown') keys.s = false;
+        if (e.key === 'ArrowRight') keys.d = false;
+    });
+
+    // --- 3. 輔助函數 ---
+    function getDistance(x1, y1, x2, y2) {
+        return Math.hypot(x1 - x2, y1 - y2);
+    }
+
+    // --- 4. 核心類別定義 ---
+
+    class Enemy {
+        constructor() {
+            // 從螢幕邊緣生成
+            if (Math.random() < 0.5) {
+                this.x = Math.random() < 0.5 ? 0 - 30 : canvas.width + 30;
+                this.y = Math.random() * canvas.height;
+            } else {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() < 0.5 ? 0 - 30 : canvas.height + 30;
             }
+            
+            this.radius = 12;
+            this.color = '#ff4d4d';
+            // 敵人的速度和血量隨時間增加
+            this.speed = Math.random() * 1.5 + 1 + (score / 500); 
+            this.hp = 20 + (score / 10);
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (!gameActive && (e.key.includes('Arrow'))) {
-                initGame();
-                gameLoop();
+        update() {
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            this.x += Math.cos(angle) * this.speed;
+            this.y += Math.sin(angle) * this.speed;
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+        }
+    }
+
+    class Bullet {
+        constructor(targetX, targetY) {
+            this.x = player.x;
+            this.y = player.y;
+            this.radius = 5;
+            this.color = '#ffff00';
+            this.speed = 10;
+            
+            const angle = Math.atan2(targetY - this.y, targetX - this.x);
+            this.velocity = {
+                x: Math.cos(angle) * this.speed,
+                y: Math.sin(angle) * this.speed
+            };
+        }
+
+        update() {
+            this.x += this.velocity.x;
+            this.y += this.velocity.y;
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+        }
+    }
+
+    class ExpGem {
+        constructor(x, y, value) {
+            this.x = x;
+            this.y = y;
+            this.value = value;
+            this.size = 8;
+            this.color = '#00ff99';
+        }
+        
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+        }
+    }
+
+    class FloatingText {
+        constructor(x, y, text) {
+            this.x = x;
+            this.y = y;
+            this.text = text;
+            this.alpha = 1;
+        }
+        update() {
+            this.y -= 1;
+            this.alpha -= 0.03;
+        }
+        draw() {
+            ctx.globalAlpha = this.alpha;
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.fillText(this.text, this.x, this.y);
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // --- 5. 遊戲主邏輯 ---
+
+    function spawnEnemies() {
+        // 每 60 幀生成一個敵人，隨分數增加生成頻率
+        let spawnRate = 60;
+        if (score > 500) spawnRate = 40;
+        if (score > 1000) spawnRate = 20;
+
+        if (frames % spawnRate === 0) {
+            enemies.push(new Enemy());
+        }
+    }
+
+    function autoAttack() {
+        // 每 30 幀射擊一次 (射速)
+        if (frames % 30 === 0 && enemies.length > 0) {
+            // 尋找最近的敵人
+            let closestEnemy = null;
+            let minDist = Infinity;
+
+            enemies.forEach(enemy => {
+                const dist = getDistance(player.x, player.y, enemy.x, enemy.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestEnemy = enemy;
+                }
+            });
+
+            if (closestEnemy) {
+                bullets.push(new Bullet(closestEnemy.x, closestEnemy.y));
+            }
+        }
+    }
+
+    function checkCollisions() {
+        // 子彈擊中敵人
+        bullets.forEach((bullet, bIndex) => {
+            // 超出螢幕移除
+            if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+                setTimeout(() => bullets.splice(bIndex, 1), 0);
                 return;
             }
-            
-            switch(e.key) {
-                case 'ArrowUp': pacman.nextDx = 0; pacman.nextDy = -1; break;
-                case 'ArrowDown': pacman.nextDx = 0; pacman.nextDy = 1; break;
-                case 'ArrowLeft': pacman.nextDx = -1; pacman.nextDy = 0; break;
-                case 'ArrowRight': pacman.nextDx = 1; pacman.nextDy = 0; break;
+
+            enemies.forEach((enemy, eIndex) => {
+                const dist = getDistance(bullet.x, bullet.y, enemy.x, enemy.y);
+                if (dist - bullet.radius - enemy.radius < 1) {
+                    // 命中
+                    enemy.hp -= player.damage;
+                    bullets.splice(bIndex, 1);
+                    
+                    // 顯示傷害數字
+                    damageTexts.push(new FloatingText(enemy.x, enemy.y, player.damage));
+
+                    if (enemy.hp <= 0) {
+                        // 敵人死亡
+                        score += 10;
+                        expGems.push(new ExpGem(enemy.x, enemy.y, 5));
+                        enemies.splice(eIndex, 1);
+                    }
+                }
+            });
+        });
+
+        // 敵人碰到玩家
+        enemies.forEach((enemy) => {
+            const dist = getDistance(player.x, player.y, enemy.x, enemy.y);
+            if (dist - player.radius - enemy.radius < 1) {
+                player.hp -= 0.5; // 每幀扣血
+                if (player.hp <= 0) {
+                    endGame();
+                }
             }
         });
 
-        function isWall(x, y) {
-            let col = Math.floor(x / TILE_SIZE);
-            let row = Math.floor(y / TILE_SIZE);
-            if (row < 0 || row >= map.length || col < 0 || col >= map[0].length) return true;
-            return map[row][col] === 1;
-        }
-
-        function movePacman() {
-            // 嘗試轉向
-            if (pacman.nextDx !== 0 || pacman.nextDy !== 0) {
-                // 檢查是否可以轉向 (檢查下一個位置的中心點)
-                let nextX = pacman.x + pacman.nextDx * PACMAN_SPEED + (pacman.nextDx * 10); // 預判
-                let nextY = pacman.y + pacman.nextDy * PACMAN_SPEED + (pacman.nextDy * 10);
+        // 玩家吃到經驗值
+        expGems.forEach((gem, index) => {
+            const dist = getDistance(player.x, player.y, gem.x, gem.y);
+            if (dist < player.radius + 15) { // 稍微大一點的撿取範圍
+                // 磁鐵效果
+                gem.x += (player.x - gem.x) * 0.2;
+                gem.y += (player.y - gem.y) * 0.2;
                 
-                // 為了簡單，我們只在接近網格中心時允許轉彎，或者前方無牆
-                // 這裡簡化邏輯：如果預判位置不是牆，就更新當前方向
-                if (!isWall(nextX, nextY)) {
-                    // 只有在非常接近網格中心時才允許90度轉彎，避免卡住
-                    // 這裡做一個簡單的對齊檢查
-                    let centerX = (Math.floor(pacman.x / TILE_SIZE) * TILE_SIZE) + TILE_SIZE / 2;
-                    let centerY = (Math.floor(pacman.y / TILE_SIZE) * TILE_SIZE) + TILE_SIZE / 2;
-                    
-                    if (Math.abs(pacman.x - centerX) < 5 && Math.abs(pacman.y - centerY) < 5) {
-                        pacman.x = centerX; // 強制對齊
-                        pacman.y = centerY;
-                        pacman.dx = pacman.nextDx;
-                        pacman.dy = pacman.nextDy;
-                        pacman.nextDx = 0;
-                        pacman.nextDy = 0;
-                    } else if (pacman.dx === 0 && pacman.dy === 0) {
-                        // 靜止狀態直接起步
-                        pacman.dx = pacman.nextDx;
-                        pacman.dy = pacman.nextDy;
-                    } else if (pacman.dx === -pacman.nextDx && pacman.dy === -pacman.nextDy) {
-                        // 反向移動隨時允許
-                        pacman.dx = pacman.nextDx;
-                        pacman.dy = pacman.nextDy;
-                    }
+                if (dist < player.radius + gem.size) {
+                    player.xp += gem.value;
+                    expGems.splice(index, 1);
+                    checkLevelUp();
                 }
             }
+        });
+    }
 
-            // 實際移動
-            let potentialX = pacman.x + pacman.dx * PACMAN_SPEED;
-            let potentialY = pacman.y + pacman.dy * PACMAN_SPEED;
+    function checkLevelUp() {
+        if (player.xp >= player.nextLevelXp) {
+            player.level++;
+            player.xp -= player.nextLevelXp;
+            player.nextLevelXp = Math.floor(player.nextLevelXp * 1.5);
             
-            // 碰撞檢測 (檢測角色邊緣)
-            const size = TILE_SIZE / 2 - 2; 
-            if (!isWall(potentialX + (pacman.dx * size), potentialY + (pacman.dy * size))) {
-                pacman.x = potentialX;
-                pacman.y = potentialY;
-            } else {
-                // 撞牆停止
-                // pacman.dx = 0; // 選擇性：撞牆是否停下
-                // pacman.dy = 0;
-            }
-
-            // 吃豆子
-            let col = Math.floor(pacman.x / TILE_SIZE);
-            let row = Math.floor(pacman.y / TILE_SIZE);
-            if (map[row][col] === 0) {
-                map[row][col] = 2;
-                score += 10;
-                scoreEl.innerText = score;
-                checkWin();
-            }
-
-            // 嘴巴動畫
-            pacman.mouthOpen += pacman.mouthSpeed;
-            if (pacman.mouthOpen > 0.25 || pacman.mouthOpen < 0) pacman.mouthSpeed = -pacman.mouthSpeed;
+            // 升級獎勵
+            player.damage += 5;
+            player.hp = Math.min(player.hp + 20, player.maxHp); // 回血
+            
+            damageTexts.push(new FloatingText(player.x, player.y - 30, "LEVEL UP!"));
         }
+    }
 
-        function moveGhosts() {
-            ghosts.forEach(ghost => {
-                // 簡單AI：如果撞牆或在路口，隨機改變方向
-                let potentialX = ghost.x + ghost.dx * GHOST_SPEED;
-                let potentialY = ghost.y + ghost.dy * GHOST_SPEED;
-                
-                let isHitWall = isWall(potentialX + (ghost.dx * 8), potentialY + (ghost.dy * 8));
-                
-                // 隨機決定是否轉向的機率
-                let changeDir = Math.random() < 0.02;
+    function updateUI() {
+        document.getElementById('level-display').innerText = player.level;
+        document.getElementById('xp-display').innerText = Math.floor(player.xp);
+        document.getElementById('next-level-xp').innerText = player.nextLevelXp;
+        document.getElementById('hp-display').innerText = Math.floor(player.hp);
+        document.getElementById('score-display').innerText = score;
+    }
 
-                if (isHitWall || ghost.dx === 0 && ghost.dy === 0 || changeDir) {
-                    const directions = [
-                        {dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}
-                    ];
-                    // 過濾掉會撞牆的方向
-                    const validDirs = directions.filter(d => 
-                        !isWall(ghost.x + d.dx * TILE_SIZE, ghost.y + d.dy * TILE_SIZE)
-                    );
+    function movePlayer() {
+        if (keys.w && player.y > player.radius) player.y -= player.speed;
+        if (keys.a && player.x > player.radius) player.x -= player.speed;
+        if (keys.s && player.y < canvas.height - player.radius) player.y += player.speed;
+        if (keys.d && player.x < canvas.width - player.radius) player.x += player.speed;
+    }
 
-                    if (validDirs.length > 0) {
-                        const move = validDirs[Math.floor(Math.random() * validDirs.length)];
-                        ghost.dx = move.dx;
-                        ghost.dy = move.dy;
-                    }
-                } else {
-                    ghost.x = potentialX;
-                    ghost.y = potentialY;
-                }
-            });
-        }
+    function animate() {
+        if (gameState !== 'playing') return;
 
-        function checkCollision() {
-            ghosts.forEach(ghost => {
-                let dist = Math.hypot(pacman.x - ghost.x, pacman.y - ghost.y);
-                if (dist < TILE_SIZE - 5) {
-                    gameOver();
-                }
-            });
-        }
+        requestAnimationFrame(animate);
+        frames++;
 
-        function checkWin() {
-            // 檢查是否還有豆子
-            let hasDots = map.some(row => row.includes(0));
-            if (!hasDots) {
-                gameActive = false;
-                statusEl.innerText = "你贏了！";
-                statusEl.style.color = "gold";
-            }
-        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        function gameOver() {
-            gameActive = false;
-            statusEl.innerText = "遊戲結束！按鍵重試";
-            statusEl.style.color = "red";
-        }
+        // 更新與繪製玩家
+        movePlayer();
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+        ctx.fillStyle = player.color;
+        ctx.fill();
 
-        function draw() {
-            // 清空畫布
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 邏輯
+        spawnEnemies();
+        autoAttack();
+        
+        // 更新實體
+        bullets.forEach(b => { b.update(); b.draw(); });
+        enemies.forEach(e => { e.update(); e.draw(); });
+        expGems.forEach(g => g.draw());
+        
+        damageTexts.forEach((t, i) => {
+            t.update();
+            t.draw();
+            if (t.alpha <= 0) damageTexts.splice(i, 1);
+        });
 
-            // 畫地圖
-            for (let r = 0; r < map.length; r++) {
-                for (let c = 0; c < map[r].length; c++) {
-                    if (map[r][c] === 1) {
-                        ctx.fillStyle = "blue";
-                        ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE - 2, TILE_SIZE - 2);
-                    } else if (map[r][c] === 0) {
-                        ctx.fillStyle = "white";
-                        ctx.beginPath();
-                        ctx.arc(c * TILE_SIZE + TILE_SIZE/2, r * TILE_SIZE + TILE_SIZE/2, 3, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-            }
+        checkCollisions();
+        updateUI();
+    }
 
-            // 畫小精靈
-            ctx.fillStyle = "yellow";
-            ctx.beginPath();
-            let angle = 0;
-            if (pacman.dx === 1) angle = 0;
-            if (pacman.dx === -1) angle = Math.PI;
-            if (pacman.dy === -1) angle = -Math.PI/2;
-            if (pacman.dy === 1) angle = Math.PI/2;
+    function endGame() {
+        gameState = 'gameover';
+        document.getElementById('game-over').style.display = 'block';
+        document.getElementById('final-score').innerText = score;
+    }
 
-            ctx.arc(pacman.x, pacman.y, TILE_SIZE/2 - 2, angle + pacman.mouthOpen * Math.PI, angle + (2 - pacman.mouthOpen) * Math.PI);
-            ctx.lineTo(pacman.x, pacman.y);
-            ctx.fill();
+    window.restartGame = function() {
+        // 重置變數
+        gameState = 'playing';
+        score = 0;
+        frames = 0;
+        player.hp = 100;
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+        player.level = 1;
+        player.xp = 0;
+        player.nextLevelXp = 10;
+        player.damage = 10;
+        
+        enemies = [];
+        bullets = [];
+        expGems = [];
+        damageTexts = [];
+        
+        document.getElementById('game-over').style.display = 'none';
+        animate();
+    };
 
-            // 畫鬼魂
-            ghosts.forEach(ghost => {
-                ctx.fillStyle = ghost.color;
-                ctx.beginPath();
-                ctx.arc(ghost.x, ghost.y, TILE_SIZE/2 - 2, 0, Math.PI * 2);
-                ctx.fill();
-                // 眼睛
-                ctx.fillStyle = "white";
-                ctx.beginPath();
-                ctx.arc(ghost.x - 4, ghost.y - 2, 3, 0, Math.PI * 2);
-                ctx.arc(ghost.x + 4, ghost.y - 2, 3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = "black";
-                ctx.beginPath();
-                ctx.arc(ghost.x - 4, ghost.y - 2, 1, 0, Math.PI * 2);
-                ctx.arc(ghost.x + 4, ghost.y - 2, 1, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        }
+    // 開始遊戲
+    animate();
 
-        function gameLoop() {
-            if (!gameActive) return;
+    // 視窗大小調整
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
 
-            movePacman();
-            moveGhosts();
-            checkCollision();
-            draw();
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        // 初始繪製一次
-        initGame();
-        draw();
-        gameActive = false; // 等待按鍵開始
-
-    </script>
+</script>
 </body>
 </html>

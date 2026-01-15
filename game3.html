@@ -1,471 +1,394 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML5 數獨遊戲</title>
+    <title>HTML5 極速賽車模擬器</title>
     <style>
-        :root {
-            --bg-color: #f0f2f5;
-            --primary-color: #007bff;
-            --grid-line: #bdc3c7;
-            --grid-border: #2c3e50;
-            --cell-bg: #ffffff;
-            --selected-bg: #e2e6ea;
-            --same-num-bg: #dbeafe;
-            --text-color: #2c3e50;
-            --fixed-num-color: #2c3e50;
-            --user-num-color: #007bff;
-            --error-color: #e74c3c;
-        }
-
         body {
+            background: #222;
+            color: white;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
+            overflow: hidden; /* 防止捲動 */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
+            height: 100vh;
             margin: 0;
-            padding: 20px;
         }
 
-        h1 {
-            color: var(--text-color);
-            margin-bottom: 20px;
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 4px solid #444;
         }
 
-        /* 遊戲控制區 */
-        .controls-top {
-            margin-bottom: 15px;
+        canvas {
+            display: block;
+            background: #87CEEB; /* 天空藍 */
         }
 
-        button {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background 0.2s;
-            margin: 0 5px;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        button.secondary {
-            background-color: #6c757d;
-        }
-
-        button.secondary:hover {
-            background-color: #545b62;
-        }
-
-        /* 數獨盤面 */
-        #sudoku-board {
-            display: grid;
-            grid-template-columns: repeat(9, 1fr);
-            background-color: var(--grid-border);
-            gap: 1px;
-            border: 2px solid var(--grid-border);
-            width: 100%;
-            max-width: 450px;
-            aspect-ratio: 1;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .cell {
-            background-color: var(--cell-bg);
+        #ui-layer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            justify-content: space-between;
+            pointer-events: none;
             font-size: 20px;
             font-weight: bold;
-            cursor: pointer;
-            user-select: none;
-            transition: background 0.1s;
+            text-shadow: 2px 2px 0 #000;
         }
 
-        /* 3x3 區域的邊框加粗邏輯 */
-        .cell:nth-child(3n) {
-            border-right: 2px solid var(--grid-border);
-        }
-        .cell:nth-child(9n) {
-            border-right: none; /* 最右邊不需要 */
-        }
-        /* 由於 Grid 佈局 row 的處理比較複雜，我們用 JS 或特定 class 處理下邊框 */
-        .cell.border-bottom {
-            border-bottom: 2px solid var(--grid-border);
-        }
-
-        /* 狀態樣式 */
-        .cell.fixed {
-            color: var(--fixed-num-color);
-            cursor: default;
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 40px;
+            border-radius: 10px;
+            display: none; /* 遊戲開始前隱藏 */
         }
 
-        .cell.user-input {
-            color: var(--user-num-color);
-        }
-
-        .cell.selected {
-            background-color: var(--primary-color);
-            color: white !important;
-        }
-
-        .cell.highlight {
-            background-color: var(--same-num-bg);
-        }
-
-        .cell.error {
-            color: var(--error-color);
-            background-color: #fadbd8;
-        }
-
-        /* 數字鍵盤 */
-        .numpad {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            margin-top: 20px;
-            width: 100%;
-            max-width: 450px;
-        }
-
-        .num-btn {
-            background-color: white;
-            border: 1px solid #ccc;
-            color: var(--text-color);
-            padding: 15px 0;
-            font-size: 18px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .num-btn:hover {
-            background-color: #e9ecef;
-        }
-
-        .num-btn:active {
-            background-color: #dee2e6;
-        }
-        
-        /* 響應式調整 */
-        @media (max-width: 500px) {
-            .cell { font-size: 16px; }
-            #sudoku-board { max-width: 95vw; }
-            .numpad { max-width: 95vw; }
-        }
+        h1 { margin: 0 0 10px; color: #ffeb3b; }
+        p { margin: 5px 0; }
+        .key { background: #444; padding: 2px 6px; border-radius: 4px; border: 1px solid #666; }
     </style>
 </head>
 <body>
 
-    <h1>HTML5 數獨</h1>
-
-    <div class="controls-top">
-        <button onclick="newGame()">新遊戲</button>
-        <button class="secondary" onclick="checkGame()">檢查錯誤</button>
-    </div>
-
-    <div id="sudoku-board">
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="ui-layer">
+            <div>速度: <span id="speedDisplay">0</span> km/h</div>
+            <div>距離: <span id="scoreDisplay">0</span> m</div>
         </div>
 
-    <div class="numpad">
-        <button class="num-btn" onclick="inputNumber(1)">1</button>
-        <button class="num-btn" onclick="inputNumber(2)">2</button>
-        <button class="num-btn" onclick="inputNumber(3)">3</button>
-        <button class="num-btn" onclick="inputNumber(4)">4</button>
-        <button class="num-btn" onclick="inputNumber(5)">5</button>
-        <button class="num-btn" onclick="inputNumber(6)">6</button>
-        <button class="num-btn" onclick="inputNumber(7)">7</button>
-        <button class="num-btn" onclick="inputNumber(8)">8</button>
-        <button class="num-btn" onclick="inputNumber(9)">9</button>
-        <button class="num-btn" onclick="inputNumber(0)">清除</button>
+        <div id="overlay">
+            <h1 id="overlayTitle">準備開始</h1>
+            <p>使用 <span class="key">←</span> <span class="key">→</span> 轉向</p>
+            <p>使用 <span class="key">↑</span> 加速</p>
+            <p>按 <span class="key">Enter</span> 開始 / 重來</p>
+        </div>
     </div>
 
-    <script>
-        const boardElement = document.getElementById('sudoku-board');
-        let solution = [];
-        let puzzle = [];
-        let selectedCellIndex = -1;
+<script>
+/**
+ * 簡易 HTML5 賽車引擎
+ * 使用透視投影原理 (Perspective Projection)
+ */
 
-        // 初始化遊戲
-        function init() {
-            createBoardHTML();
-            newGame();
-        }
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiSpeed = document.getElementById('speedDisplay');
+const uiScore = document.getElementById('scoreDisplay');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlayTitle');
 
-        // 建立 HTML 格子結構
-        function createBoardHTML() {
-            boardElement.innerHTML = '';
-            for (let i = 0; i < 81; i++) {
-                const cell = document.createElement('div');
-                cell.classList.add('cell');
-                cell.dataset.index = i;
-                
-                // 加粗下邊框邏輯 (第3列和第6列的底部)
-                const row = Math.floor(i / 9);
-                if (row === 2 || row === 5) {
-                    cell.style.borderBottom = '2px solid var(--grid-border)';
-                }
+// --- 遊戲狀態變數 ---
+let gameState = 'START'; // START, PLAYING, GAME_OVER
+let width = 800;
+let height = 600;
+let roadWidth = 2000; // 道路虛擬寬度
+let segmentLength = 200; // 每個路段長度
+let rumbleLength = 3; // 路緣石交替頻率
+let laneWidth = 1200; // 車道寬度
+let fieldOfView = 100; // 視野深度
+let cameraHeight = 1000; // 攝影機高度
+let cameraDepth = 0.84; // 攝影機距離螢幕的距離系数 (1 / tan(fov/2))
+let drawDistance = 300; // 繪製多遠的路段
 
-                cell.addEventListener('click', () => selectCell(i));
-                boardElement.appendChild(cell);
+let playerX = 0; // 玩家橫向位置 (-1 到 1)
+let playerZ = 0; // 玩家前進距離
+let speed = 0;   // 當前速度
+let maxSpeed = 12000; // 最大速度
+let accel = 30; // 加速度
+let breaking = -80; // 煞車
+let decel = -10; // 自然減速
+let offRoadDecel = -60; // 離開道路減速
+let offRoadLimit = 1.2; // 掉出道路的邊界
+
+let road = []; // 儲存道路資訊
+let trackLength = 0;
+
+// 按鍵狀態
+const keys = {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false,
+    Enter: false
+};
+
+// --- 初始化與工具函數 ---
+
+function init() {
+    createRoad();
+    gameState = 'START';
+    overlay.style.display = 'block';
+    
+    // 鍵盤監聽
+    window.addEventListener('keydown', (e) => {
+        if(keys.hasOwnProperty(e.code)) keys[e.code] = true;
+        if(e.code === 'Enter') handleInput();
+    });
+    window.addEventListener('keyup', (e) => {
+        if(keys.hasOwnProperty(e.code)) keys[e.code] = false;
+    });
+
+    requestAnimationFrame(gameLoop);
+}
+
+function handleInput() {
+    if (gameState === 'START' || gameState === 'GAME_OVER') {
+        resetGame();
+    }
+}
+
+function resetGame() {
+    gameState = 'PLAYING';
+    speed = 0;
+    playerX = 0;
+    playerZ = 0;
+    overlay.style.display = 'none';
+}
+
+function createRoad() {
+    road = [];
+    const totalSegments = 5000; // 總路段數
+    for (let i = 0; i < totalSegments; i++) {
+        // 產生一些隨機彎道
+        let curve = 0;
+        let height = 0;
+        
+        // 簡單的波浪路段生成邏輯
+        if (i > 100 && i < 600) curve = 0.5;
+        if (i > 700 && i < 1200) curve = -0.5;
+        if (i > 1300 && i < 1800) curve = 1.5; // 急彎
+        if (i > 1800 && i < 2500) curve = -1.5;
+        
+        // 加入起伏 (山坡)
+        if (i > 500 && i % 1000 < 500) height = Math.sin(i/30.0) * 1500;
+
+        road.push({
+            p1: { world: { z: i * segmentLength }, camera: {}, screen: {} },
+            p2: { world: { z: (i + 1) * segmentLength }, camera: {}, screen: {} },
+            curve: curve,
+            height: height,
+            color: {
+                grass: (Math.floor(i / rumbleLength) % 2) ? '#10aa10' : '#009a00',
+                rumble: (Math.floor(i / rumbleLength) % 2) ? '#cc0000' : 'white',
+                road: (Math.floor(i / rumbleLength) % 2) ? '#666' : '#646464'
             }
+        });
+    }
+    trackLength = road.length * segmentLength;
+}
+
+// --- 數學與投影 ---
+
+function project(p, cameraX, cameraY, cameraZ, cameraDepth, width, height, roadWidth) {
+    p.camera.x = (p.world.x || 0) - cameraX;
+    p.camera.y = (p.world.y || 0) - cameraY;
+    p.camera.z = (p.world.z || 0) - cameraZ; // 這裡 cameraZ 是指玩家當前在路上的位置
+
+    // 避免除以零
+    if (p.camera.z <= 0) return;
+
+    p.screen.scale = cameraDepth / p.camera.z;
+    p.screen.x = Math.round((width / 2) + (p.screen.scale * p.camera.x * width / 2));
+    p.screen.y = Math.round((height / 2) - (p.screen.scale * p.camera.y * height / 2));
+    p.screen.w = Math.round(p.screen.scale * roadWidth * width / 2);
+}
+
+// --- 繪圖函數 ---
+
+function renderPolygon(ctx, x1, y1, x2, y2, x3, y3, x4, y4, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineTo(x3, y3);
+    ctx.lineTo(x4, y4);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawPlayer(ctx, width, height, steer, updown) {
+    // 簡單的像素賽車繪製
+    const w = 150;
+    const h = 80;
+    const x = width / 2 - w / 2;
+    const y = height - h - 20;
+
+    // 車體陰影
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(x + 10, y + 60, w - 20, 20);
+
+    // 輪胎
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x + 5, y + 40, 30, 35); // 左
+    ctx.fillRect(x + w - 35, y + 40, 30, 35); // 右
+
+    // 車身 (紅色跑車)
+    ctx.fillStyle = '#d32f2f'; // 紅色
+    
+    // 轉向時車身稍微變形
+    let turnOffset = steer * 20;
+    
+    ctx.beginPath();
+    ctx.moveTo(x + 10 + turnOffset, y);
+    ctx.lineTo(x + w - 10 + turnOffset, y);
+    ctx.lineTo(x + w, y + 50);
+    ctx.lineTo(x, y + 50);
+    ctx.fill();
+
+    // 擋風玻璃
+    ctx.fillStyle = '#4fc3f7';
+    ctx.beginPath();
+    ctx.moveTo(x + 20 + turnOffset, y + 5);
+    ctx.lineTo(x + w - 20 + turnOffset, y + 5);
+    ctx.lineTo(x + w - 10, y + 30);
+    ctx.lineTo(x + 10, y + 30);
+    ctx.fill();
+
+    // 尾燈
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(x + 10, y + 40, 20, 10);
+    ctx.fillRect(x + w - 30, y + 40, 20, 10);
+    
+    // 煞車燈
+    if(keys.ArrowDown) {
+        ctx.fillStyle = '#ffaaaa';
+        ctx.fillRect(x + 10, y + 40, 20, 10);
+        ctx.fillRect(x + w - 30, y + 40, 20, 10);
+    }
+}
+
+// --- 遊戲迴圈 ---
+
+function update(dt) {
+    if (gameState !== 'PLAYING') return;
+
+    let position = playerZ;
+    let playerSegment = road[Math.floor((playerZ / segmentLength) % road.length)];
+    
+    // 速度控制
+    if (keys.ArrowUp) speed += accel;
+    else if (keys.ArrowDown) speed += breaking;
+    else speed += decel;
+
+    // 越野減速
+    if ((playerX < -1 || playerX > 1) && speed > 2000) {
+        speed += offRoadDecel;
+    }
+
+    // 限制速度
+    speed = Math.max(0, Math.min(speed, maxSpeed));
+
+    // 移動
+    playerZ = (playerZ + dt * speed); 
+    
+    // 轉向 (速度越快轉越快)
+    let dx = dt * 2 * (speed / maxSpeed); 
+    if (keys.ArrowLeft) playerX -= dx;
+    if (keys.ArrowRight) playerX += dx;
+
+    // 離心力 (彎道會把車甩出去)
+    playerX -= (dx * speed / maxSpeed * playerSegment.curve * 2);
+
+    // UI 更新
+    uiSpeed.innerText = Math.round(speed / 100);
+    uiScore.innerText = Math.round(playerZ / 100);
+
+    // 無限循環賽道
+    if (playerZ >= trackLength) {
+        playerZ -= trackLength;
+    }
+}
+
+function render() {
+    ctx.clearRect(0, 0, width, height);
+
+    // 找到當前所在的賽道段
+    let baseSegmentIndex = Math.floor(playerZ / segmentLength);
+    let basePercent = (playerZ % segmentLength) / segmentLength;
+    let baseSegment = road[baseSegmentIndex % road.length];
+
+    // 修正攝影機 X 位置 (模擬轉彎視角)
+    let playerPercent = playerZ / segmentLength;
+    let dx = - (baseSegment.curve * basePercent); 
+    let x = 0;
+
+    // 繪製路段
+    let maxY = height; // 用於遮擋檢查 (Z-buffer概念)
+
+    for (let i = 0; i < drawDistance; i++) {
+        let n = (baseSegmentIndex + i) % road.length;
+        let segment = road[n];
+        
+        // 攝影機位置
+        // 這裡做了一個簡化的視角累積計算
+        segment.looped = n < baseSegmentIndex;
+        let segmentLoopOffset = segment.looped ? trackLength : 0;
+        
+        // 透視投影
+        project(segment.p1, (playerX * roadWidth) - x, cameraHeight + baseSegment.height, playerZ - segmentLoopOffset, cameraDepth, width, height, roadWidth);
+        project(segment.p2, (playerX * roadWidth) - x - dx, cameraHeight + baseSegment.height, playerZ - segmentLoopOffset, cameraDepth, width, height, roadWidth);
+
+        x += dx;
+        dx += segment.curve;
+
+        // 如果這一段在螢幕下方或者被前面遮擋，就跳過
+        if (segment.p1.camera.z <= cameraDepth || segment.p2.screen.y >= maxY || segment.p2.screen.y >= segment.p1.screen.y) {
+            continue;
         }
 
-        // 選擇格子
-        function selectCell(index) {
-            // 如果是題目固定的數字，不能選擇
-            if (puzzle[index] !== 0) return;
+        // 繪製草地
+        renderPolygon(ctx, 0, segment.p2.screen.y, width, segment.p2.screen.y, width, segment.p1.screen.y, 0, segment.p1.screen.y, segment.color.grass);
+        
+        // 繪製路緣石
+        let r1 = segment.p1.screen.w * 1.2;
+        let r2 = segment.p2.screen.w * 1.2;
+        renderPolygon(ctx, segment.p1.screen.x - r1, segment.p1.screen.y, segment.p1.screen.x + r1, segment.p1.screen.y, segment.p2.screen.x + r2, segment.p2.screen.y, segment.p2.screen.x - r2, segment.p2.screen.y, segment.color.rumble);
 
-            const cells = document.querySelectorAll('.cell');
-            
-            // 移除之前的選取狀態
-            cells.forEach(c => c.classList.remove('selected', 'highlight'));
-            
-            selectedCellIndex = index;
-            cells[index].classList.add('selected');
+        // 繪製路面
+        renderPolygon(ctx, segment.p1.screen.x - segment.p1.screen.w, segment.p1.screen.y, segment.p1.screen.x + segment.p1.screen.w, segment.p1.screen.y, segment.p2.screen.x + segment.p2.screen.w, segment.p2.screen.y, segment.p2.screen.x - segment.p2.screen.w, segment.p2.screen.y, segment.color.road);
 
-            // 高亮相同數字 (可選功能)
-            highlightSameNumbers();
+        // 畫車道線
+        if ((baseSegmentIndex + i) % 2) { // 虛線效果
+            let l1 = segment.p1.screen.w * 0.02;
+            let l2 = segment.p2.screen.w * 0.02;
+            renderPolygon(ctx, segment.p1.screen.x - l1, segment.p1.screen.y, segment.p1.screen.x + l1, segment.p1.screen.y, segment.p2.screen.x + l2, segment.p2.screen.y, segment.p2.screen.x - l2, segment.p2.screen.y, 'white');
         }
 
-        // 輸入數字
-        function inputNumber(num) {
-            if (selectedCellIndex === -1) return;
-            
-            const cells = document.querySelectorAll('.cell');
-            const cell = cells[selectedCellIndex];
+        maxY = segment.p2.screen.y;
+    }
 
-            // 0 代表清除
-            if (num === 0) {
-                cell.textContent = '';
-                cell.classList.remove('user-input', 'error');
-                cell.dataset.value = 0;
-            } else {
-                cell.textContent = num;
-                cell.classList.add('user-input');
-                cell.dataset.value = num;
-                
-                // 簡單的即時檢查 (紅色顯示錯誤)
-                checkConflict(selectedCellIndex, num);
-            }
-            
-            highlightSameNumbers(); // 更新高亮
-            
-            // 檢查是否勝利
-            checkWin();
-        }
+    // 繪製玩家車輛
+    let steer = (keys.ArrowLeft ? -1 : 0) + (keys.ArrowRight ? 1 : 0);
+    drawPlayer(ctx, width, height, steer, 0);
+}
 
-        // 檢查衝突並標記紅色
-        function checkConflict(index, value) {
-            const cells = document.querySelectorAll('.cell');
-            const row = Math.floor(index / 9);
-            const col = index % 9;
-            let isError = false;
+let lastTime = 0;
+function gameLoop(time) {
+    if (!lastTime) lastTime = time;
+    let dt = (time - lastTime) / 1000;
+    lastTime = time;
 
-            // 檢查行、列、宮
-            for (let i = 0; i < 9; i++) {
-                // 檢查行
-                let rIdx = row * 9 + i;
-                if (rIdx !== index && getCellValue(rIdx) === value) isError = true;
-                
-                // 檢查列
-                let cIdx = i * 9 + col;
-                if (cIdx !== index && getCellValue(cIdx) === value) isError = true;
-            }
+    update(dt);
+    render();
 
-            // 檢查 3x3 宮
-            const startRow = Math.floor(row / 3) * 3;
-            const startCol = Math.floor(col / 3) * 3;
-            for (let r = 0; r < 3; r++) {
-                for (let c = 0; c < 3; c++) {
-                    let idx = (startRow + r) * 9 + (startCol + c);
-                    if (idx !== index && getCellValue(idx) === value) isError = true;
-                }
-            }
+    requestAnimationFrame(gameLoop);
+}
 
-            // 也檢查是否與解答不符 (嚴格模式)
-            // if (value !== solution[index]) isError = true; 
+// 啟動遊戲
+init();
 
-            if (isError) {
-                cells[index].classList.add('error');
-            } else {
-                cells[index].classList.remove('error');
-            }
-        }
-
-        function getCellValue(index) {
-            const cells = document.querySelectorAll('.cell');
-            const val = cells[index].dataset.value || puzzle[index];
-            return parseInt(val) || 0;
-        }
-
-        // 全局檢查按鈕
-        function checkGame() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach((cell, i) => {
-                if (!cell.classList.contains('fixed') && cell.textContent !== '') {
-                    const val = parseInt(cell.textContent);
-                    if (val !== solution[i]) {
-                        cell.classList.add('error');
-                    } else {
-                        cell.classList.remove('error');
-                    }
-                }
-            });
-        }
-
-        // 高亮顯示相同的數字
-        function highlightSameNumbers() {
-            const cells = document.querySelectorAll('.cell');
-            const currentVal = getCellValue(selectedCellIndex);
-            
-            if (currentVal === 0) return;
-
-            cells.forEach((cell, i) => {
-                if (i !== selectedCellIndex && getCellValue(i) === currentVal) {
-                    cell.classList.add('highlight');
-                }
-            });
-        }
-
-        // 開始新遊戲
-        function newGame() {
-            selectedCellIndex = -1;
-            generateSudoku();
-            renderBoard();
-        }
-
-        // 渲染盤面
-        function renderBoard() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach((cell, i) => {
-                cell.className = 'cell'; // 重置 class
-                
-                // 重新加上邊框樣式
-                const row = Math.floor(i / 9);
-                if (row === 2 || row === 5) cell.style.borderBottom = '2px solid var(--grid-border)';
-                
-                cell.dataset.value = puzzle[i];
-                
-                if (puzzle[i] !== 0) {
-                    cell.textContent = puzzle[i];
-                    cell.classList.add('fixed');
-                } else {
-                    cell.textContent = '';
-                }
-            });
-        }
-
-        // ----- 數獨生成算法 (Backtracking) -----
-
-        function generateSudoku() {
-            // 1. 初始化空盤面
-            solution = Array(81).fill(0);
-            
-            // 2. 填滿盤面 (生成完整解)
-            fillBoard(solution);
-            
-            // 3. 挖洞 (生成題目)
-            puzzle = [...solution];
-            // 移除數字的數量 (難度控制)，這裡移除 40 個數字
-            let attempts = 40; 
-            while (attempts > 0) {
-                let idx = Math.floor(Math.random() * 81);
-                if (puzzle[idx] !== 0) {
-                    puzzle[idx] = 0;
-                    attempts--;
-                }
-            }
-        }
-
-        function fillBoard(board) {
-            // 找到第一個空格
-            let index = -1;
-            for (let i = 0; i < 81; i++) {
-                if (board[i] === 0) {
-                    index = i;
-                    break;
-                }
-            }
-
-            // 如果沒有空格，表示填完了
-            if (index === -1) return true;
-
-            // 嘗試填入 1-9
-            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-            shuffle(numbers); // 隨機順序，保證每次生成不同
-
-            for (let num of numbers) {
-                if (isValid(board, index, num)) {
-                    board[index] = num;
-                    if (fillBoard(board)) return true;
-                    board[index] = 0; // Backtrack
-                }
-            }
-            return false;
-        }
-
-        function isValid(board, index, value) {
-            const row = Math.floor(index / 9);
-            const col = index % 9;
-
-            // 檢查行
-            for (let i = 0; i < 9; i++) {
-                if (board[row * 9 + i] === value) return false;
-            }
-            // 檢查列
-            for (let i = 0; i < 9; i++) {
-                if (board[i * 9 + col] === value) return false;
-            }
-            // 檢查 3x3 宮
-            const startRow = Math.floor(row / 3) * 3;
-            const startCol = Math.floor(col / 3) * 3;
-            for (let r = 0; r < 3; r++) {
-                for (let c = 0; c < 3; c++) {
-                    if (board[(startRow + r) * 9 + (startCol + c)] === value) return false;
-                }
-            }
-            return true;
-        }
-
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-        }
-
-        function checkWin() {
-            const cells = document.querySelectorAll('.cell');
-            let isFull = true;
-            let isCorrect = true;
-
-            for(let i=0; i<81; i++) {
-                const val = parseInt(cells[i].textContent) || 0;
-                if(val === 0) {
-                    isFull = false;
-                    break;
-                }
-                if(val !== solution[i]) {
-                    isCorrect = false;
-                }
-            }
-
-            if (isFull && isCorrect) {
-                setTimeout(() => alert('恭喜！你完成了數獨！'), 100);
-            }
-        }
-
-        // 啟動
-        init();
-
-    </script>
+</script>
 </body>
 </html>
