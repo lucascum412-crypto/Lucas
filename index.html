@@ -2,221 +2,212 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Neon Museum - 遊戲博物館</title>
+    <title>Neon RPG Museum</title>
     <style>
         :root {
-            --bg: #050510;
-            --primary: #00f2ff; /* 霓虹青 */
-            --secondary: #e94560; /* 電玩紅 */
-            --accent: #7000ff; /* 霓虹紫 */
+            --bg: #0a0a1a;
+            --primary: #00f2ff;
+            --secondary: #e94560;
+            --accent: #7000ff;
         }
-
-        body { margin: 0; background: var(--bg); overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: '微軟正黑體', sans-serif; }
         
         #welcomeOverlay {
             position: fixed; inset: 0; background: radial-gradient(circle, #1a1a2e 0%, #050510 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
         }
         .start-btn { 
-            padding: 15px 50px; font-size: 20px; background: transparent; border: 2px solid var(--primary);
-            color: var(--primary); cursor: pointer; border-radius: 50px; transition: 0.3s;
-            box-shadow: 0 0 15px var(--primary);
+            padding: 15px 60px; font-size: 22px; background: transparent; border: 3px solid var(--primary);
+            color: var(--primary); cursor: pointer; border-radius: 10px; transition: 0.3s;
+            text-transform: uppercase; letter-spacing: 3px; font-weight: bold;
         }
-        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 30px var(--primary); }
-
-        canvas { display: block; }
+        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 40px var(--primary); }
 
         #hintUI {
-            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-            padding: 15px 40px; background: rgba(0, 0, 0, 0.8);
-            border: 2px solid var(--primary); border-radius: 50px;
-            color: var(--primary); font-weight: bold; font-size: 18px;
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
-            pointer-events: none; display: none;
-            letter-spacing: 2px;
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            padding: 10px 30px; background: rgba(0, 0, 0, 0.85);
+            border-bottom: 3px solid var(--primary); color: white;
+            font-size: 20px; display: none; z-index: 10;
         }
     </style>
 </head>
 <body>
 
 <div id="welcomeOverlay">
-    <h1 style="color: white; font-size: 50px; text-shadow: 0 0 20px var(--primary);">NEON MUSEUM</h1>
-    <button class="start-btn" onclick="start()">進入探索</button>
+    <h1 style="color: white; font-size: 60px; margin-bottom: 30px; text-shadow: 0 0 20px var(--primary);">遊戲博物館</h1>
+    <button class="start-btn" onclick="initGame()">ENTER</button>
 </div>
 
-<div id="hintUI">傳送門：<span id="gameName">---</span></div>
-<canvas id="c"></canvas>
+<div id="hintUI">按「空白鍵」進入：<span id="gameName" style="color: var(--primary);"></span></div>
+<canvas id="gameCanvas"></canvas>
 
 <script>
-    const cvs = document.getElementById('c');
-    const ctx = cvs.getContext('2d');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
     const hintUI = document.getElementById('hintUI');
     const nameLabel = document.getElementById('gameName');
 
-    let w, h, player, keys = {}, running = false;
-    
-    // 遊戲配置 (上4下4 佈局)
+    let player = { x: 0, y: 0, w: 40, h: 50, speed: 5, color: '#00f2ff' };
+    let keys = {};
+    let running = false;
+    const tileSize = 60; // 背景格仔大小
+
+    // 門口配置 (上四下四)
     const gates = [
-        // 第一排 (深處)
-        { name: "ARCADE FIGHTER", file: "game1.html", x: -300, z: 400, color: "#00f2ff" },
-        { name: "NEON TETRIS", file: "game2.html", x: -100, z: 400, color: "#e94560" },
-        { name: "方塊拼圖", file: "game3.html", x: 100, z: 400, color: "#7000ff" },
-        { name: "打磚塊進化", file: "game4.html", x: 300, z: 400, color: "#00f2ff" },
-        // 第二排 (近處)
-        { name: "記憶翻牌", file: "game5.html", x: -300, z: 150, color: "#7000ff" },
-        { name: "節奏大師", file: "game6.html", x: -100, z: 150, color: "#00f2ff" },
-        { name: "平台跳躍", file: "game7.html", x: 100, z: 150, color: "#e94560" },
-        { name: "霓虹飛行員", file: "game8.html", x: 300, z: 150, color: "#7000ff" }
+        // 第一排
+        { id: 1, name: "ARCADE FIGHTER", file: "game1.html", x: 200, y: 200, color: "#00f2ff" },
+        { id: 2, name: "NEON TETRIS", file: "game2.html", x: 500, y: 200, color: "#e94560" },
+        { id: 3, name: "方塊拼圖", file: "game3.html", x: 800, y: 200, color: "#7000ff" },
+        { id: 4, name: "打磚塊進化", file: "game4.html", x: 1100, y: 200, color: "#00f2ff" },
+        // 第二排
+        { id: 5, name: "記憶翻牌", file: "game5.html", x: 200, y: 600, color: "#7000ff" },
+        { id: 6, name: "節奏大師", file: "game6.html", x: 500, y: 600, color: "#00f2ff" },
+        { id: 7, name: "平台跳躍", file: "game7.html", x: 800, y: 600, color: "#e94560" },
+        { id: 8, name: "霓虹飛行員", file: "game8.html", x: 1100, y: 600, color: "#7000ff" }
     ];
 
-    function start() {
+    function initGame() {
         document.getElementById('welcomeOverlay').style.display = 'none';
         resize();
-        player = { x: 0, z: -100, rot: 0 };
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
         running = true;
         loop();
     }
 
     function resize() {
-        w = cvs.width = window.innerWidth;
-        h = cvs.height = window.innerHeight;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
     }
 
     window.onresize = resize;
-    window.onkeydown = e => keys[e.key.toLowerCase()] = true;
-    window.onkeyup = e => keys[e.key.toLowerCase()] = false;
+    window.onkeydown = e => keys[e.key] = true;
+    window.onkeyup = e => keys[e.key] = false;
 
-    // 透視投影函數
-    function project(x, y, z) {
-        let fov = 400;
-        let scale = fov / (fov + z - player.z);
-        let x2d = (x - player.x) * scale + w / 2;
-        let y2d = h / 2 + y * scale;
-        return { x: x2d, y: y2d, s: scale };
+    function drawBackground() {
+        // 鋪滿全螢幕的格仔線
+        ctx.strokeStyle = '#161632';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += tileSize) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += tileSize) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
     }
 
     function drawGate(gate) {
-        let pos = project(gate.x, 0, gate.z);
-        if (pos.s < 0) return;
-
-        let gw = 120 * pos.s;
-        let gh = 180 * pos.s;
+        const gw = 100, gh = 120;
         
-        ctx.save();
-        ctx.shadowBlur = 15 * pos.s;
-        ctx.shadowColor = gate.color;
+        // 繪製門的底座陰影
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.ellipse(gate.x + gw/2, gate.y + gh, 60, 20, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        // 繪製 2D 精細拱門 (外框)
         ctx.strokeStyle = gate.color;
-        ctx.lineWidth = 3 * pos.s;
-
-        // 繪製精細拱門
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = gate.color;
+        
         ctx.beginPath();
-        ctx.moveTo(pos.x - gw/2, pos.y);
-        ctx.lineTo(pos.x - gw/2, pos.y - gh + gw/2);
-        ctx.arc(pos.x, pos.y - gh + gw/2, gw/2, Math.PI, 0);
-        ctx.lineTo(pos.x + gw/2, pos.y);
+        ctx.moveTo(gate.x, gate.y + gh);
+        ctx.lineTo(gate.x, gate.y + 30);
+        ctx.arcTo(gate.x, gate.y, gate.x + gw/2, gate.y, 30);
+        ctx.arcTo(gate.x + gw, gate.y, gate.x + gw, gate.y + 30, 30);
+        ctx.lineTo(gate.x + gw, gate.y + gh);
         ctx.stroke();
 
-        // 繪製地面倒影
-        ctx.globalAlpha = 0.3;
-        ctx.beginPath();
-        ctx.moveTo(pos.x - gw/2, pos.y);
-        ctx.lineTo(pos.x - gw/2, pos.y + gh/2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(pos.x + gw/2, pos.y);
-        ctx.lineTo(pos.x + gw/2, pos.y + gh/2);
-        ctx.stroke();
-        ctx.globalAlpha = 1.0;
+        // 門內的光暈效果
+        let grad = ctx.createLinearGradient(0, gate.y, 0, gate.y + gh);
+        grad.addColorStop(0, gate.color + '55');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(gate.x + 5, gate.y + 10, gw - 10, gh - 10);
 
-        // 文字
-        ctx.fillStyle = gate.color;
-        ctx.font = `bold ${14 * pos.s}px Arial`;
-        ctx.textAlign = "center";
-        ctx.fillText(gate.name, pos.x, pos.y - gh - 10);
-        ctx.restore();
-
-        // 碰撞檢查
-        let dx = player.x - gate.x;
-        let dz = player.z - gate.z;
-        if (Math.abs(dx) < 40 && Math.abs(dz) < 40) {
-            window.location.href = gate.file;
-        }
+        // 遊戲名稱標籤
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(gate.name, gate.x + gw/2, gate.y - 15);
     }
 
-    function drawPlayer() {
-        let size = 20;
-        let cx = w/2, cy = h/2 + 100;
-        
+    function drawRobot(p) {
         ctx.save();
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = "#00f2ff";
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = p.color;
         
-        // 機器人頭部
-        ctx.strokeRect(cx - 15, cy - 45, 30, 25);
-        // 眼睛
-        ctx.fillStyle = "#00f2ff";
-        ctx.fillRect(cx - 10, cy - 35, 5, 5);
-        ctx.fillRect(cx + 5, cy - 35, 5, 5);
         // 身體
-        ctx.strokeRect(cx - 20, cy - 20, 40, 40);
-        
-        // 倒影
-        ctx.globalAlpha = 0.2;
-        ctx.strokeRect(cx - 20, cy + 25, 40, 20);
-        ctx.restore();
-    }
+        ctx.fillStyle = '#333';
+        ctx.fillRect(p.x - p.w/2, p.y - p.h/2, p.w, p.h);
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p.x - p.w/2, p.y - p.h/2, p.w, p.h);
 
-    function drawGrid() {
-        ctx.strokeStyle = "rgba(0, 242, 255, 0.15)";
-        ctx.lineWidth = 1;
-        
-        for (let i = -2000; i <= 2000; i += 100) {
-            // 縱線 (透視)
-            let p1 = project(i, 0, 0);
-            let p2 = project(i, 0, 2000);
-            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-            
-            // 橫線
-            let p3 = project(-2000, 0, i);
-            let p4 = project(2000, 0, i);
-            ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.stroke();
-        }
+        // 頭部
+        ctx.fillStyle = '#333';
+        ctx.fillRect(p.x - 15, p.y - p.h/2 - 25, 30, 25);
+        ctx.strokeRect(p.x - 15, p.y - p.h/2 - 25, 30, 25);
+
+        // 發光的眼睛
+        ctx.fillStyle = p.color;
+        let eyeFlash = Math.sin(Date.now() / 200) * 0.5 + 0.5;
+        ctx.globalAlpha = 0.5 + eyeFlash * 0.5;
+        ctx.fillRect(p.x - 10, p.y - p.h/2 - 18, 6, 6);
+        ctx.fillRect(p.x + 4, p.y - p.h/2 - 18, 6, 6);
+        ctx.globalAlpha = 1;
+
+        // 手臂
+        ctx.strokeRect(p.x - p.w/2 - 10, p.y - 10, 10, 25);
+        ctx.strokeRect(p.x + p.w/2, p.y - 10, 10, 25);
+
+        ctx.restore();
     }
 
     function update() {
-        let speed = 4;
-        if (keys['w']) player.z += speed;
-        if (keys['s']) player.z -= speed;
-        if (keys['a']) player.x -= speed;
-        if (keys['d']) player.x += speed;
+        if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
+        if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
+        if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
+        if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
 
-        // 檢查是否靠近門
-        let near = false;
+        // 邊界限制
+        player.x = Math.max(player.w, Math.min(canvas.width - player.w, player.x));
+        player.y = Math.max(player.h + 30, Math.min(canvas.height - player.h, player.y));
+
+        let currentGate = null;
         gates.forEach(g => {
-            let d = Math.hypot(player.x - g.x, player.z - g.z);
-            if (d < 100) { near = true; nameLabel.innerText = g.name; }
+            // 2D 碰撞：檢查玩家是否站在門的範圍內
+            if (player.x > g.x && player.x < g.x + 100 &&
+                player.y > g.y && player.y < g.y + 120) {
+                currentGate = g;
+            }
         });
-        hintUI.style.display = near ? 'block' : 'none';
+
+        if (currentGate) {
+            hintUI.style.display = 'block';
+            nameLabel.innerText = currentGate.name;
+            if (keys[' ']) { // 按空白鍵進入
+                window.location.href = currentGate.file;
+            }
+        } else {
+            hintUI.style.display = 'none';
+        }
     }
 
     function loop() {
         if (!running) return;
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        drawBackground();
+        gates.forEach(drawGate);
+        drawRobot(player);
         update();
-        ctx.fillStyle = "#050510";
-        ctx.fillRect(0, 0, w, h);
         
-        drawGrid();
-        
-        // 排序繪製 (從遠到近)
-        let sortedGates = [...gates].sort((a,b) => b.z - a.z);
-        sortedGates.forEach(drawGate);
-        
-        drawPlayer();
         requestAnimationFrame(loop);
     }
 </script>
-
 </body>
 </html>
