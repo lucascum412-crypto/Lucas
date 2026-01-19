@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Neon Arcade 遊戲博物館</title>
-    <link rel="stylesheet" href="style.css"> <style>
+    <link rel="stylesheet" href="style.css">
+    <style>
         /* 由於尚未有完整的 style.css，先將必要樣式放在這裡 */
         :root {
             --bg-dark: #050510;
@@ -25,6 +26,7 @@
             justify-content: center;
             height: 100vh;
             overflow: hidden; /* 防止滾動條 */
+            cursor: default; /* 預設鼠標樣式 */
         }
 
         /* 歡迎頁面 */
@@ -36,19 +38,28 @@
         .start-btn { 
             padding: 20px 60px; font-size: 24px; background: transparent; border: 2px solid var(--neon-blue);
             color: var(--neon-blue); cursor: pointer; border-radius: 50px; transition: 0.3s;
+            text-shadow: 0 0 10px var(--neon-blue);
         }
         .start-btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 30px var(--neon-blue); }
 
         /* 畫布 */
-        #museumCanvas { display: block; background: linear-gradient(to bottom, #0a0a1a, #00000a); /* 深色背景漸變 */ }
+        #museumCanvas { 
+            display: block; 
+            background: linear-gradient(to bottom, #0a0a1a, #00000a); /* 深色背景漸變 */ 
+        }
         
         /* 遊戲提示 UI */
         #gameHint {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 242, 255, 0.15); padding: 12px 30px; border-radius: 25px;
-            border: 1px solid var(--neon-blue); pointer-events: none; display: none;
-            font-size: 1.1rem; color: var(--neon-blue); text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+            background: rgba(0, 0, 0, 0.7); /* 更暗的背景 */
+            padding: 12px 30px; border-radius: 5px;
+            border: 1px solid var(--neon-blue); 
+            pointer-events: none; display: none;
+            font-size: 1.1rem; color: var(--neon-blue); 
+            text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
             animation: pulse-hint 1.5s infinite alternate; /* 提示文字脈動效果 */
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
         }
         @keyframes pulse-hint {
             from { opacity: 0.8; transform: translateX(-50%) scale(1); }
@@ -63,7 +74,9 @@
     <button class="start-btn" onclick="enterMuseum()">開始探索</button>
 </div>
 
-<div id="gameHint">走入光門進入：<span id="gameName"></span></div>
+<div id="gameHint">
+    <span id="hintPrefix">走入光門進入：</span><span id="gameName"></span>
+</div>
 <canvas id="museumCanvas"></canvas>
 
 <script>
@@ -71,61 +84,106 @@
     const ctx = canvas.getContext('2d');
     const gameHint = document.getElementById('gameHint');
     const gameNameDisplay = document.getElementById('gameName');
+    const hintPrefix = document.getElementById('hintPrefix');
 
     // 博物館地圖配置
-    let player = { x: 450, y: 500, size: 25, speed: 4, color: 'white' }; // 玩家大小與顏色
+    // 玩家角色現在是一個更複雜的對象，包含繪製相關的參數
+    let player = {
+        x: 0, y: 0, z: 0, // 3D 座標，z 用於模擬深度
+        size: 0.5, // 相對大小
+        speed: 0.03, // 速度調整為相對單位
+        color: 'white',
+        pulse: 0, // 用於呼吸光效
+        lastFrameTime: 0 // 用於幀間時間計算
+    };
+
     let keys = {};
     let gameRunning = false; // 控制遊戲循環
+    let cameraZ = 0; // 模擬攝像機Z軸移動，創造遠景
+    let fov = 1.0; // 視野，影響透視感
+    let viewportWidth = 1200; // 邏輯寬度，確保物體比例
+    let viewportHeight = 750; // 邏輯高度
+    let gridOffset = 0; // 地面格線滾動
 
-    // 定義 8 個遊戲的入口 (門口)
+    // 定義 8 個遊戲的入口 (光門)
+    // 座標現在是相對於中心點的，並用 Z 軸調整深度
     const gameEntrances = [
         // 左側展區 (4 個)
-        { id: 1, name: "ARCADE FIGHTER", x: 150, y: 150, doorColor: "#e94560", url: "game1.html" },
-        { id: 2, name: "彈幕射擊 (未開發)", x: 150, y: 300, doorColor: "#00d2ff", url: "game2.html" },
-        { id: 3, name: "方塊拼圖 (未開發)", x: 150, y: 450, doorColor: "#ff9900", url: "game3.html" },
-        { id: 4, name: "打磚塊進化版", x: 150, y: 600, doorColor: "#00f2ff", url: "game4.html" },
+        { id: 1, name: "ARCADE FIGHTER", x: -0.6, y: -0.2, z: -0.5, doorColor: "#00f2ff", url: "game1.html" },
+        { id: 2, name: "霓虹方塊 (Tetris)", x: -0.2, y: -0.2, z: -0.5, doorColor: "#ff9900", url: "game2.html" },
+        { id: 3, name: "方塊拼圖 (未開發)", x: 0.2, y: -0.2, z: -0.5, doorColor: "#7000ff", url: "game3.html" },
+        { id: 4, name: "打磚塊進化版", x: 0.6, y: -0.2, z: -0.5, doorColor: "#00d2ff", url: "game4.html" },
         
         // 右側展區 (4 個)
-        { id: 5, name: "記憶翻牌 (未開發)", x: 750, y: 150, doorColor: "#8b00ff", url: "game5.html" },
-        { id: 6, name: "節奏大師 (未開發)", x: 750, y: 300, doorColor: "#ff0077", url: "game6.html" },
-        { id: 7, name: "平台跳躍 (未開發)", x: 750, y: 450, doorColor: "#33ff00", url: "game7.html" },
-        { id: 8, name: "霓虹飛行員", x: 750, y: 600, doorColor: "#7000ff", url: "game8.html" },
+        { id: 5, name: "記憶翻牌 (未開發)", x: -0.6, y: -0.2, z: 0.5, doorColor: "#e94560", url: "game5.html" },
+        { id: 6, name: "節奏大師 (未開發)", x: -0.2, y: -0.2, z: 0.5, doorColor: "#33ff00", url: "game6.html" },
+        { id: 7, name: "平台跳躍 (未開發)", x: 0.2, y: -0.2, z: 0.5, doorColor: "#ff0077", url: "game7.html" },
+        { id: 8, name: "霓虹飛行員", x: 0.6, y: -0.2, z: 0.5, doorColor: "#8b00ff", url: "game8.html" },
     ];
 
     function enterMuseum() {
         document.getElementById('welcomeOverlay').style.display = 'none';
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.width = viewportWidth;
+        canvas.height = viewportHeight;
+        // 初始玩家位置
+        player.x = 0;
+        player.y = 0;
+        player.z = 0.8; // 玩家從遠處出現
         gameRunning = true;
+        player.lastFrameTime = performance.now(); // 初始化時間
         loop();
     }
 
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-    function update() {
-        // 玩家移動
-        if (keys['arrowup'] || keys['w']) player.y -= player.speed;
-        if (keys['arrowdown'] || keys['s']) player.y += player.speed;
-        if (keys['arrowleft'] || keys['a']) player.x -= player.speed;
-        if (keys['arrowright'] || keys['d']) player.x += player.speed;
+    function project3D(x, y, z) {
+        const p = fov / (fov + z + cameraZ); // 透視投影因子
+        return {
+            x: (x * p * viewportWidth) + (canvas.width / 2),
+            y: (y * p * viewportHeight) + (canvas.height / 2),
+            scale: p // 返回縮放因子，用於調整物體大小
+        };
+    }
 
-        // 邊界限制
-        player.x = Math.max(player.size / 2, Math.min(canvas.width - player.size / 2, player.x));
-        player.y = Math.max(player.size / 2, Math.min(canvas.height - player.size / 2, player.y));
+    function update() {
+        if (!gameRunning) return;
+
+        const currentTime = performance.now();
+        const deltaTime = (currentTime - player.lastFrameTime) / 1000; // 秒
+        player.lastFrameTime = currentTime;
+
+        // 玩家移動 (使用 Z 軸模擬前後，X 軸左右)
+        if (keys['arrowup'] || keys['w']) player.z -= player.speed * deltaTime;
+        if (keys['arrowdown'] || keys['s']) player.z += player.speed * deltaTime;
+        if (keys['arrowleft'] || keys['a']) player.x -= player.speed * deltaTime;
+        if (keys['arrowright'] || keys['d']) player.x += player.speed * deltaTime;
+
+        // 玩家 Z 軸邊界 (防止穿透或過遠)
+        player.z = Math.max(-0.8, Math.min(1.0, player.z));
+        // 玩家 X 軸邊界 (防止穿牆)
+        player.x = Math.max(-1.0, Math.min(1.0, player.x));
+
+        // 玩家呼吸光效
+        player.pulse = Math.sin(currentTime * 0.005) * 0.5 + 0.5; // 0 到 1 之間循環
+
+        // 地面格線滾動效果
+        gridOffset = (gridOffset + 0.05) % 50; // 調整速度
 
         let nearAnyEntrance = false;
         gameEntrances.forEach(entrance => {
-            const dist = Math.hypot(player.x - entrance.x, player.y - entrance.y);
-            if (dist < player.size + 15) { // 進入門口範圍
+            const dist = Math.hypot(player.x - entrance.x, player.z - entrance.z); // 使用 XZ 平面距離
+            if (dist < 0.15) { // 進入門口範圍
                 if (entrance.url.includes("未開發")) {
                     gameNameDisplay.innerText = entrance.name; // 顯示未開發提示
+                    hintPrefix.innerText = "未來展區：";
                     gameHint.style.display = 'block';
                 } else {
                     window.location.href = entrance.url; // 跳轉到遊戲
                 }
-            } else if (dist < player.size + 80) { // 靠近門口顯示提示
+            } else if (dist < 0.3) { // 靠近門口顯示提示
                 gameNameDisplay.innerText = entrance.name;
+                hintPrefix.innerText = "走入光門進入：";
                 gameHint.style.display = 'block';
                 nearAnyEntrance = true;
             }
@@ -135,71 +193,146 @@
     }
 
     function draw() {
-        // 背景漸變與網格
+        // 清除畫布並繪製漸變背景
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#050510'; // 確保背景色
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#0a0a1a'); // 天空深色
+        gradient.addColorStop(1, '#00000a'); // 地面更深
+        ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 繪製背景發光網格
-        ctx.strokeStyle = 'rgba(0, 242, 255, 0.05)';
-        ctx.lineWidth = 0.5;
-        for (let i = 0; i < canvas.width; i += 50) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
-        for (let i = 0; i < canvas.height; i += 50) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
-        
-        // 繪製牆壁 (示意)
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(0, 0, 100, canvas.height); // 左牆
-        ctx.fillRect(canvas.width - 100, 0, 100, canvas.height); // 右牆
-        ctx.fillRect(0, 0, canvas.width, 100); // 天花板
-        ctx.fillRect(0, canvas.height - 100, canvas.width, 100); // 地板
-        ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(100, 100, canvas.width - 200, canvas.height - 200); // 中間區域邊框
+        // 繪製動態格線地面
+        ctx.strokeStyle = `rgba(0, 242, 255, 0.1)`;
+        ctx.lineWidth = 1;
+        const cellSize = 0.1; // 邏輯格線大小
+        const gridRange = 2.0; // 格線範圍
 
+        for (let i = -gridRange; i <= gridRange; i += cellSize) {
+            // 垂直線
+            const p1 = project3D(i, 0, -fov);
+            const p2 = project3D(i, 0, fov * 2); // 延伸到很遠
+            if (p1.scale > 0 && p2.scale > 0) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+
+            // 水平線 (帶有滾動)
+            const p3 = project3D(-gridRange, 0, i + gridOffset * cellSize * 0.5); // 增加滾動
+            const p4 = project3D(gridRange, 0, i + gridOffset * cellSize * 0.5);
+             if (p3.scale > 0 && p4.scale > 0) {
+                ctx.beginPath();
+                ctx.moveTo(p3.x, p3.y);
+                ctx.lineTo(p4.x, p4.y);
+                ctx.stroke();
+            }
+        }
+        
         // 繪製遊戲入口 (光門)
-        gameEntrances.forEach(entrance => {
+        gameEntrances.sort((a,b) => a.z - b.z).forEach(entrance => { // 根據 Z 軸排序，確保繪製順序正確
+            const {x, y, z, doorColor, name, url} = entrance;
+            const projected = project3D(x, y, z);
+            if (projected.scale <= 0) return; // 不繪製在攝像機後面的物體
+
+            const gateWidth = 0.2 * projected.scale * viewportWidth;
+            const gateHeight = 0.3 * projected.scale * viewportHeight;
+            const gateLineThickness = 4 * projected.scale;
+            const glowAmount = 0.5 + Math.sin(performance.now() * 0.003 + entrance.id) * 0.5; // 脈動光效
+
             // 光門主體
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = entrance.doorColor;
-            ctx.fillStyle = entrance.doorColor;
+            ctx.shadowBlur = 40 * projected.scale;
+            ctx.shadowColor = doorColor;
+            ctx.strokeStyle = doorColor;
+            ctx.lineWidth = gateLineThickness;
+
+            // 上半部分
             ctx.beginPath();
-            ctx.ellipse(entrance.x, entrance.y, 40, 60, 0, 0, Math.PI * 2); // 橢圓形光門
-            ctx.fill();
+            ctx.arc(projected.x, projected.y - gateHeight / 2, gateWidth / 2, Math.PI, 0); // 半圓
+            ctx.lineTo(projected.x + gateWidth / 2, projected.y - gateHeight / 2 + gateHeight / 4);
+            ctx.moveTo(projected.x - gateWidth / 2, projected.y - gateHeight / 2);
+            ctx.lineTo(projected.x - gateWidth / 2, projected.y - gateHeight / 2 + gateHeight / 4);
+            ctx.stroke();
+
+            // 下半部分 (反射)
+            ctx.beginPath();
+            ctx.arc(projected.x, projected.y + gateHeight / 2, gateWidth / 2, 0, Math.PI); // 倒半圓
+            ctx.lineTo(projected.x - gateWidth / 2, projected.y + gateHeight / 2 - gateHeight / 4);
+            ctx.moveTo(projected.x + gateWidth / 2, projected.y + gateHeight / 2);
+            ctx.lineTo(projected.x + gateWidth / 2, projected.y + gateHeight / 2 - gateHeight / 4);
+            ctx.globalAlpha = glowAmount * 0.3; // 反射透明度
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+
+            ctx.shadowBlur = 0; // 重置陰影
 
             // 光門名稱
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = entrance.doorColor;
-            ctx.font = "bold 18px 'Segoe UI'";
+            ctx.fillStyle = doorColor;
+            ctx.font = `bold ${20 * projected.scale}px 'Segoe UI'`;
             ctx.textAlign = "center";
-            ctx.fillText(entrance.name, entrance.x, entrance.y - 80);
+            ctx.fillText(name, projected.x, projected.y - gateHeight / 2 - 15 * projected.scale);
+            
+            // 反射名稱
+            if (projected.scale > 0.3) { // 太遠就不顯示反射
+                ctx.globalAlpha = glowAmount * 0.2;
+                ctx.fillText(name, projected.x, projected.y + gateHeight / 2 + 30 * projected.scale);
+                ctx.globalAlpha = 1.0;
+            }
+            
+            // 顯示遊戲檔案名
+            ctx.fillStyle = "rgba(255,255,255,0.5)";
+            ctx.font = `12px Arial`;
+            const filename = url.includes("未開發") ? "(未開發)" : `(${url})`;
+            ctx.fillText(filename, projected.x, projected.y - gateHeight / 2 - 2 * projected.scale);
+            if (projected.scale > 0.3) {
+                 ctx.globalAlpha = glowAmount * 0.15;
+                 ctx.fillText(filename, projected.x, projected.y + gateHeight / 2 + 15 * projected.scale);
+                 ctx.globalAlpha = 1.0;
+            }
         });
 
-        // 繪製玩家 (更精緻的小人)
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = varColor(0); // 玩家霓虹光暈
-        ctx.fillStyle = player.color;
-        
-        // 身體
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2); // 身體
-        ctx.fill();
-        
-        // 頭部
-        ctx.beginPath();
-        ctx.arc(player.x, player.y - player.size - 5, player.size * 0.7, 0, Math.PI * 2); // 頭
-        ctx.fill();
+        // 繪製玩家機器人
+        const projectedPlayer = project3D(player.x, player.y, player.z);
+        if (projectedPlayer.scale > 0) { // 確保玩家在畫面內
+            const robotSize = player.size * projectedPlayer.scale * viewportHeight;
+            const glowColor = `rgba(0, 242, 255, ${0.5 + player.pulse * 0.5})`; // 呼吸光效
 
-        ctx.shadowBlur = 0; // 重置陰影
+            ctx.shadowBlur = 30 * projectedPlayer.scale;
+            ctx.shadowColor = glowColor;
+            ctx.strokeStyle = glowColor;
+            ctx.lineWidth = 3 * projectedPlayer.scale;
 
-        // 玩家霓虹外框
-        ctx.strokeStyle = varColor(0);
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(player.x, player.y - player.size - 5, player.size * 0.7, 0, Math.PI * 2);
-        ctx.stroke();
+            const px = projectedPlayer.x;
+            const py = projectedPlayer.y;
+
+            // 身體 (四方形)
+            ctx.beginPath();
+            ctx.rect(px - robotSize / 2, py - robotSize / 2, robotSize, robotSize);
+            ctx.stroke();
+
+            // 頭部 (圓形)
+            ctx.beginPath();
+            ctx.arc(px, py - robotSize * 0.75, robotSize * 0.4, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 眼睛 (小方塊)
+            ctx.fillStyle = glowColor;
+            ctx.fillRect(px - robotSize * 0.15, py - robotSize * 0.85, robotSize * 0.1, robotSize * 0.1);
+            ctx.fillRect(px + robotSize * 0.05, py - robotSize * 0.85, robotSize * 0.1, robotSize * 0.1);
+
+            // 反射機器人
+            ctx.globalAlpha = 0.3; // 反射透明度
+            ctx.beginPath(); // 身體
+            ctx.rect(px - robotSize / 2, py + robotSize / 2, robotSize, robotSize);
+            ctx.stroke();
+            ctx.beginPath(); // 頭部
+            ctx.arc(px, py + robotSize * 0.75, robotSize * 0.4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1.0; // 重置透明度
+
+            ctx.shadowBlur = 0; // 重置陰影
+        }
+
     }
 
     function loop() {
@@ -209,17 +342,20 @@
         requestAnimationFrame(loop);
     }
 
-    // 通用顏色函數，可以從 style.css 中獲取
-    function varColor(i) { return getComputedStyle(document.documentElement).getPropertyValue('--neon-blue'); }
-
     // 視窗大小改變時，重新調整 Canvas
     window.addEventListener('resize', () => {
         if (gameRunning) {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            // 重新計算 player 和 entrance 的投影，保持比例
+            viewportWidth = canvas.width;
+            viewportHeight = canvas.height;
             draw();
         }
     });
+
+    // 初始調整大小
+    window.dispatchEvent(new Event('resize'));
 </script>
 </body>
 </html>
