@@ -2,24 +2,37 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy Hub</title>
+    <title>Galaxy Hub - Auto Return Edition</title>
     <style>
         :root { --bg: #020205; --primary: #00f2ff; }
         body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
+        
+        /* 歡迎介面 */
         #welcomeOverlay {
             position: fixed; inset: 0; background: radial-gradient(circle, #0a0a25 0%, #000 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
         }
-        .start-btn { padding: 18px 70px; font-size: 24px; background: transparent; border: 3px solid var(--primary); color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold; }
-        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 50px var(--primary); }
-        #hintUI { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 15px 45px; background: rgba(0, 0, 0, 0.9); border: 1px solid var(--primary); color: white; font-size: 20px; display: none; z-index: 2000; border-radius: 50px; }
+
+        .btn { 
+            padding: 15px 50px; font-size: 20px; background: transparent; border: 2px solid var(--primary);
+            color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold;
+        }
+        .btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 30px var(--primary); }
+
+        #hintUI {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 12px 40px; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--primary);
+            color: white; font-size: 18px; display: none; z-index: 2000; border-radius: 50px;
+        }
     </style>
 </head>
 <body>
+
 <div id="welcomeOverlay">
     <h1 style="color: white; font-size: 50px; letter-spacing: 15px;">GALAXY HUB</h1>
-    <button class="start-btn" onclick="initGame()">ENTER SYSTEM</button>
+    <button class="btn" onclick="initGame()">ENTER SYSTEM</button>
 </div>
+
 <div id="hintUI">PRESS <b style="color:var(--primary)">[SPACE]</b> TO ENTER <span id="gameName"></span></div>
 <canvas id="gameCanvas"></canvas>
 
@@ -36,7 +49,7 @@
     let frameCount = 0;
 
     const gateData = [
-        { name: "ARCADE FIGHTER", row: "top", color: "#00f2ff", file: "game1.html" },
+        { name: "NEON FIGHTER", row: "top", color: "#00f2ff", file: "game1.html" },
         { name: "SPACE DRIFT", row: "top", color: "#ff0077", file: "game2.html" },
         { name: "CYBER PUZZLE", row: "top", color: "#7000ff", file: "game3.html" },
         { name: "BIO HAZARD", row: "top", color: "#39ff14", file: "game4.html" },
@@ -46,6 +59,11 @@
         { name: "VOID ESCAPE", row: "bottom", color: "#7000ff", file: "game8.html" }
     ];
     let gates = [];
+    const deco = {
+        trees: [{x:0.25, y:0.5}, {x:0.42, y:0.5}, {x:0.58, y:0.5}, {x:0.75, y:0.5}],
+        benches: [{x:0.33, y:0.42}, {x:0.67, y:0.42}],
+        lamps: [{x:0.1, y:0.5}, {x:0.9, y:0.5}]
+    };
 
     function resize() {
         canvas.width = window.innerWidth;
@@ -55,89 +73,133 @@
         const spacing = (canvas.width - margin * 2) / 3;
         gateData.forEach((g, i) => {
             const col = i % 4;
-            const x = margin + col * spacing - 65;
             const y = g.row === "top" ? 60 : canvas.height - 220;
-            gates.push({ ...g, x, y, w: 130, h: 140 });
+            gates.push({ ...g, x: margin + col * spacing - 65, y, w: 130, h: 140 });
         });
     }
 
+    // --- 核心改動：啟動邏輯 ---
     function initGame() {
         document.getElementById('welcomeOverlay').style.display = 'none';
         resize();
-        
-        // 讀取 URL 參數
-        const params = new URLSearchParams(window.location.search);
-        const gateIndex = params.get('gate');
-
-        if (gateIndex !== null && gates[gateIndex]) {
-            player.x = gates[gateIndex].x + gates[gateIndex].w / 2;
-            player.y = gates[gateIndex].y + gates[gateIndex].h + 30;
-        } else {
-            player.x = canvas.width / 2;
-            player.y = canvas.height / 2;
-        }
-
         if(npcs.length === 0) {
             for(let i=0; i<7; i++) {
-                npcs.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, w:24, h:48, color:`hsl(${Math.random()*360},70%,60%)`, tx:Math.random()*canvas.width, ty:Math.random()*canvas.height, anim: Math.random()*10, dir: 1, speed: 1 + Math.random() });
+                npcs.push({ 
+                    x: Math.random()*canvas.width, y: Math.random()*canvas.height, 
+                    w:24, h:48, color:`hsl(${Math.random()*360},70%,60%)`, 
+                    tx:Math.random()*canvas.width, ty:Math.random()*canvas.height,
+                    anim: Math.random()*10, dir: 1, speed: 1.2 + Math.random()
+                });
             }
         }
-        running = true; loop();
+        player.x = canvas.width/2; player.y = canvas.height/2;
+        running = true;
+        loop();
     }
 
-    window.onload = () => { if (window.location.search.includes("back")) initGame(); };
+    // 檢查 URL 是否帶有 #back 標籤
+    window.onload = () => {
+        if (window.location.hash === "#back") {
+            initGame(); // 如果是從遊戲返回，直接啟動大廳
+        }
+    };
+
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
 
+    function drawCharacter(char) {
+        const { x, y, color, anim, dir } = char;
+        const isMoving = char === player ? (Object.values(keys).some(k => k)) : true;
+        const walkCycle = isMoving ? Math.sin(frameCount * 0.15 + anim) : 0;
+        
+        ctx.save();
+        ctx.translate(x, y);
+        if (dir === -1) ctx.scale(-1, 1);
+
+        // 雙腿
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(-5, 5); ctx.lineTo(-8 + walkCycle*6, 20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(8 - walkCycle*6, 20); ctx.stroke();
+
+        // 身體與頭
+        ctx.fillStyle = "#111"; ctx.strokeStyle = color; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(-10, -15, 20, 26, 4); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, -28, 12, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        
+        // 發光眼睛
+        ctx.shadowBlur = 8; ctx.shadowColor = color; ctx.fillStyle = color;
+        ctx.fillRect(2, -31, 5, 2); ctx.fillRect(-7, -31, 5, 2);
+        ctx.restore();
+    }
+
     function update() {
-        if(!running) return;
         frameCount++;
         let nx = player.x, ny = player.y;
         if(keys['ArrowUp'] || keys['KeyW']) ny -= player.speed;
         if(keys['ArrowDown'] || keys['KeyS']) ny += player.speed;
         if(keys['ArrowLeft'] || keys['KeyA']) { nx -= player.speed; player.dir = -1; }
         if(keys['ArrowRight'] || keys['KeyD']) { nx += player.speed; player.dir = 1; }
-        if(nx > 0 && nx < canvas.width) player.x = nx;
-        if(ny > 0 && ny < canvas.height) player.y = ny;
+
+        player.x = Math.max(20, Math.min(canvas.width-20, nx));
+        player.y = Math.max(20, Math.min(canvas.height-20, ny));
 
         let curG = gates.find(g => player.x > g.x && player.x < g.x+130 && player.y > g.y && player.y < g.y+140);
         if(curG) {
             hintUI.style.display = 'block';
             nameLabel.innerText = curG.name;
-            if(keys['Space']) {
-                const idx = gates.indexOf(curG);
-                window.location.href = curG.file + "?gate=" + idx;
-            }
+            if(keys['Space']) window.location.href = curG.file; // 跳轉到外部遊戲
         } else { hintUI.style.display = 'none'; }
 
         npcs.forEach(n => {
             let dx = n.tx - n.x, dy = n.ty - n.y, dist = Math.hypot(dx, dy);
-            if(dist < 10) { n.tx = Math.random()*canvas.width; n.ty = Math.random()*canvas.height; }
-            else { n.x += (dx/dist)*n.speed; n.y += (dy/dist)*n.speed; n.dir = dx > 0 ? 1 : -1; }
+            if(dist < 10) {
+                n.tx = Math.random()*canvas.width; n.ty = Math.random()*canvas.height;
+            } else {
+                n.x += (dx/dist)*n.speed; n.y += (dy/dist)*n.speed;
+                n.dir = dx > 0 ? 1 : -1;
+            }
         });
-    }
-
-    function drawCharacter(char) {
-        ctx.save();
-        ctx.translate(char.x, char.y);
-        if (char.dir === -1) ctx.scale(-1, 1);
-        ctx.fillStyle = char.color;
-        ctx.fillRect(-12, -48, 24, 48); // 簡化展示，實際可放你的細緻繪圖代碼
-        ctx.restore();
     }
 
     function draw() {
         ctx.fillStyle = '#050508'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#101025';
+        for(let x=0; x<canvas.width; x+=80) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+        for(let y=0; y<canvas.height; y+=80) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
+
         gates.forEach(g => {
-            ctx.strokeStyle = g.color; ctx.lineWidth = 5;
-            ctx.strokeRect(g.x, g.y, g.w, g.h);
-            ctx.fillStyle = "white"; ctx.fillText(g.name, g.x + 20, g.y - 10);
+            ctx.fillStyle = '#000'; ctx.fillRect(g.x, g.y, g.w, g.h);
+            ctx.fillStyle = '#fff'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+            ctx.fillText(g.name, g.x + 65, g.row==='top'?g.y+165:g.y-20);
         });
-        drawCharacter(player);
-        npcs.forEach(drawCharacter);
+
+        let entities = [...npcs, player].sort((a, b) => a.y - b.y);
+        entities.forEach(ent => {
+            if(!gates.some(g => ent.x > g.x && ent.x < g.x+130 && ent.y > g.y && ent.y < g.y+140)) {
+                drawCharacter(ent);
+            }
+        });
+
+        deco.trees.forEach(t => {
+            const x=t.x*canvas.width, y=t.y*canvas.height;
+            ctx.fillStyle='rgba(10, 40, 10, 0.9)'; ctx.shadowBlur=20; ctx.shadowColor='#39ff14';
+            ctx.beginPath(); ctx.arc(x, y, 65, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x, y-40, 50, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+        });
+
+        gates.forEach(g => {
+            ctx.strokeStyle = g.color; ctx.lineWidth = 10; ctx.shadowBlur = 15; ctx.shadowColor = g.color;
+            ctx.strokeRect(g.x, g.y, 130, 140); ctx.shadowBlur = 0;
+        });
     }
 
-    function loop() { if(running) { update(); draw(); requestAnimationFrame(loop); } }
+    function loop() {
+        if(running) {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+    }
 </script>
 </body>
 </html>
