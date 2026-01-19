@@ -2,12 +2,11 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Neon Museum - Enhanced Edition</title>
+    <title>Neon Museum - Social Hub</title>
     <style>
         :root {
             --bg: #030308;
             --primary: #00f2ff;
-            --npc-gold: #ffcc00;
         }
         body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
         #welcomeOverlay {
@@ -29,11 +28,11 @@
 <body>
 
 <div id="welcomeOverlay">
-    <h1 style="color: white; font-size: 50px; letter-spacing: 10px; margin-bottom: 40px;">THE GALLERY</h1>
+    <h1 style="color: white; font-size: 50px; letter-spacing: 10px; margin-bottom: 40px;">GALAXY ARCADE</h1>
     <button class="start-btn" onclick="initGame()">進入展廳</button>
 </div>
 
-<div id="hintUI">按「空白鍵」啟動：<span id="gameName" style="color: var(--primary);"></span></div>
+<div id="hintUI">按「空白鍵」進入：<span id="gameName" style="color: var(--primary);"></span></div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -45,18 +44,33 @@
     let player = { x: 0, y: 0, w: 40, h: 50, speed: 5 };
     let keys = {};
     let running = false;
+    let npcs = [];
 
-    // NPC 系統 (增加平滑移動與隨機停頓)
-    let npcs = [
-        { x: 400, y: 300, w: 35, h: 45, color: '#ff55ff', tx: 400, ty: 300, state: 'wait', timer: 100 },
-        { x: 1200, y: 500, w: 35, h: 45, color: '#ffcc00', tx: 1200, ty: 500, state: 'move', timer: 0 }
-    ];
+    // NPC 顏色池
+    const npcColors = ['#ff55ff', '#ffcc00', '#39ff14', '#ff4d00', '#7000ff', '#e94560', '#00ff77', '#ffffff'];
 
-    // 精細裝飾物配置
+    // 初始化 8 個 NPC
+    function createNPCs() {
+        npcs = [];
+        for (let i = 0; i < 8; i++) {
+            npcs.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                w: 35, h: 45,
+                color: npcColors[i],
+                tx: Math.random() * window.innerWidth,
+                ty: Math.random() * window.innerHeight,
+                state: 'wait',
+                timer: Math.random() * 200
+            });
+        }
+    }
+
     const decoList = [
-        { type: 'bench', x: 0.25, y: 0.45 }, { type: 'bench', x: 0.75, y: 0.45 },
-        { type: 'lamp', x: 0.1, y: 0.3 }, { type: 'lamp', x: 0.9, y: 0.3 },
-        { type: 'tree', x: 0.45, y: 0.4 }, { type: 'tree', x: 0.55, y: 0.4 }
+        { type: 'bench', x: 0.2, y: 0.45 }, { type: 'bench', x: 0.8, y: 0.45 },
+        { type: 'lamp', x: 0.05, y: 0.2 }, { type: 'lamp', x: 0.95, y: 0.2 },
+        { type: 'lamp', x: 0.05, y: 0.8 }, { type: 'lamp', x: 0.95, y: 0.8 },
+        { type: 'tree', x: 0.4, y: 0.42 }, { type: 'tree', x: 0.6, y: 0.42 }
     ];
 
     const gateData = [
@@ -75,6 +89,7 @@
     function initGame() {
         document.getElementById('welcomeOverlay').style.display = 'none';
         resize();
+        createNPCs();
         player.x = canvas.width / 2;
         player.y = canvas.height / 2;
         running = true;
@@ -84,10 +99,8 @@
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        
-        // 動態計算間距 (上4下4)
         gates = [];
-        const margin = canvas.width * 0.15;
+        const margin = canvas.width * 0.12;
         const spacing = (canvas.width - (margin * 2)) / 3;
         
         gateData.forEach((g, i) => {
@@ -96,7 +109,7 @@
             gates.push({
                 ...g,
                 x: margin + col * spacing - 50,
-                y: row === 0 ? 120 : canvas.height - 250
+                y: row === 0 ? 100 : canvas.height - 230
             });
         });
     }
@@ -105,54 +118,38 @@
     window.onkeydown = e => keys[e.key] = true;
     window.onkeyup = e => keys[e.key] = false;
 
-    // 繪製精細長椅
+    // --- 繪製組件 ---
     function drawBench(x, y) {
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(x, y, 100, 40); // 座墊
-        ctx.strokeStyle = '#444';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, 100, 40);
-        ctx.fillStyle = '#111';
-        ctx.fillRect(x-5, y, 5, 40); // 左扶手
-        ctx.fillRect(x+100, y, 5, 40); // 右扶手
+        ctx.fillStyle = '#1a1a2e'; ctx.fillRect(x, y, 100, 35);
+        ctx.strokeStyle = '#444'; ctx.strokeRect(x, y, 100, 35);
+        ctx.fillStyle = '#0a0a1a'; ctx.fillRect(x-5, y-5, 5, 45); ctx.fillRect(x+100, y-5, 5, 45); // 靠背柱
     }
 
-    // 繪製精細樹木
     function drawTree(x, y) {
-        ctx.fillStyle = '#0a330a';
-        ctx.beginPath();
-        ctx.arc(x, y, 25, 0, Math.PI*2); ctx.fill(); // 底層葉子
-        ctx.beginPath();
-        ctx.arc(x, y-20, 18, 0, Math.PI*2); ctx.fill(); // 頂層葉子
-        ctx.fillStyle = '#39ff14'; // 葉尖發光
-        ctx.beginPath(); ctx.arc(x, y-20, 3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#0a220a'; 
+        ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y-15, 15, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#39ff14'; ctx.beginPath(); ctx.arc(x, y-15, 2, 0, Math.PI*2); ctx.fill();
     }
 
-    // 繪製精細街燈
     function drawLamp(x, y) {
-        ctx.fillStyle = '#222';
-        ctx.fillRect(x, y, 8, 100); // 燈柱
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = 'rgba(255,255,0,0.5)';
-        ctx.fillStyle = '#ffffaa';
-        ctx.beginPath(); ctx.arc(x+4, y, 12, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#333'; ctx.fillRect(x, y, 6, 90);
+        ctx.shadowBlur = 25; ctx.shadowColor = 'rgba(255,255,100,0.4)';
+        ctx.fillStyle = '#fffFAA'; ctx.beginPath(); ctx.arc(x+3, y, 10, 0, Math.PI*2); ctx.fill();
         ctx.shadowBlur = 0;
     }
 
     function drawRobot(r, isPlayer) {
         ctx.save();
         ctx.translate(r.x, r.y);
-        // 身體與描邊
-        ctx.fillStyle = '#111';
-        ctx.fillRect(-r.w/2, -r.h/2, r.w, r.h);
+        ctx.fillStyle = '#0a0a0a'; ctx.fillRect(-r.w/2, -r.h/2, r.w, r.h);
         ctx.strokeStyle = isPlayer ? '#00f2ff' : r.color;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(-r.w/2, -r.h/2, r.w, r.h);
-        // 頭部與發光眼
-        ctx.fillRect(-14, -r.h/2-22, 28, 22);
-        ctx.strokeRect(-14, -r.h/2-22, 28, 22);
-        ctx.fillStyle = isPlayer ? '#00f2ff' : '#fff';
-        ctx.fillRect(-8, -38, 6, 6); ctx.fillRect(4, -38, 6, 6);
+        ctx.lineWidth = 3; ctx.strokeRect(-r.w/2, -r.h/2, r.w, r.h);
+        // 頭部
+        ctx.fillRect(-14, -r.h/2-20, 28, 20); ctx.strokeRect(-14, -r.h/2-20, 28, 20);
+        // 發光眼
+        ctx.fillStyle = isPlayer ? '#00f2ff' : r.color;
+        ctx.fillRect(-8, -35, 5, 5); ctx.fillRect(3, -35, 5, 5);
         ctx.restore();
     }
 
@@ -162,33 +159,30 @@
         if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
         if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
 
-        // 自然 NPC AI
+        // 限制玩家不出界
+        player.x = Math.max(20, Math.min(canvas.width-20, player.x));
+        player.y = Math.max(20, Math.min(canvas.height-20, player.y));
+
+        // NPC 邏輯
         npcs.forEach(n => {
             if (n.state === 'wait') {
                 n.timer--;
                 if (n.timer <= 0) {
                     n.state = 'move';
-                    n.tx = Math.random() * (canvas.width - 100) + 50;
-                    n.ty = Math.random() * (canvas.height - 100) + 50;
+                    n.tx = Math.random() * (canvas.width - 60) + 30;
+                    n.ty = Math.random() * (canvas.height - 60) + 30;
                 }
             } else {
-                let dx = n.tx - n.x;
-                let dy = n.ty - n.y;
-                let dist = Math.hypot(dx, dy);
-                if (dist < 2) {
-                    n.state = 'wait';
-                    n.timer = Math.random() * 200 + 50;
-                } else {
-                    n.x += (dx/dist) * 1.5; // 較慢的自然步速
-                    n.y += (dy/dist) * 1.5;
-                }
+                let dx = n.tx - n.x, dy = n.ty - n.y, dist = Math.hypot(dx, dy);
+                if (dist < 2) { n.state = 'wait'; n.timer = Math.random() * 300 + 100; }
+                else { n.x += (dx/dist) * 1.2; n.y += (dy/dist) * 1.2; }
             }
         });
 
-        // 碰撞與提示
+        // 傳送檢查
         let current = null;
         gates.forEach(g => {
-            if (Math.abs(player.x - (g.x+50)) < 60 && Math.abs(player.y - (g.y+60)) < 70) current = g;
+            if (Math.abs(player.x - (g.x+50)) < 60 && Math.abs(player.y - (g.y+65)) < 70) current = g;
         });
         if(current) {
             hintUI.style.display = 'block';
@@ -200,32 +194,31 @@
     function loop() {
         if (!running) return;
         update();
+        ctx.fillStyle = '#050508'; ctx.fillRect(0,0,canvas.width, canvas.height);
         
-        // 背景繪製
-        ctx.fillStyle = '#050508';
-        ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.strokeStyle = '#101020';
-        for(let i=0; i<canvas.width; i+=60) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
-        for(let i=0; i<canvas.height; i+=60) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+        // 網格
+        ctx.strokeStyle = '#101025';
+        for(let i=0; i<canvas.width; i+=80) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+        for(let i=0; i<canvas.height; i+=80) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
 
-        // 門口繪製
+        // 繪製門口
         gates.forEach(g => {
             ctx.fillStyle = '#000'; ctx.fillRect(g.x, g.y, 100, 130);
             ctx.strokeStyle = g.color; ctx.lineWidth = 4; ctx.strokeRect(g.x, g.y, 100, 130);
-            ctx.fillStyle = g.color + '22'; ctx.fillRect(g.x+5, g.y+5, 90, 120);
+            ctx.fillStyle = g.color + '15'; ctx.fillRect(g.x+5, g.y+5, 90, 120);
             ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.font = 'bold 16px Arial';
-            ctx.fillText(g.name, g.x+50, g.y - 20);
+            ctx.fillText(g.name, g.x+50, g.y - 15);
         });
 
-        // 物件渲染 (包含 Y-sorting 概念，先簡單畫裝飾再畫角色)
+        // 繪製裝飾物
         decoList.forEach(d => {
-            const rx = d.x * canvas.width;
-            const ry = d.y * canvas.height;
+            const rx = d.x * canvas.width, ry = d.y * canvas.height;
             if(d.type === 'bench') drawBench(rx, ry);
             if(d.type === 'lamp') drawLamp(rx, ry);
             if(d.type === 'tree') drawTree(rx, ry);
         });
 
+        // 繪製角色
         npcs.forEach(n => drawRobot(n, false));
         drawRobot(player, true);
 
