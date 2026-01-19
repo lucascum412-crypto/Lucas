@@ -2,172 +2,116 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>ARCADE FIGHTER - 終極修復版</title>
+    <title>ARCADE FIGHTER - 修復版</title>
     <style>
-        :root {
-            --bg-color: #0d0d1a;
-            --card-bg: #1a1a2e;
-            --primary-color: #00f2ff;
-            --secondary-color: #e94560;
-            --text-color: #e0e0e0;
-        }
-        body { margin: 0; background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; height: 100vh; color: var(--text-color); font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        #gameContainer { position: relative; border: 3px solid #333; box-shadow: 0 0 30px rgba(0, 242, 255, 0.2); background: #000; border-radius: 10px; width: 900px; height: 450px; }
-        canvas { background-color: #16213e; display: block; border-radius: 7px; }
-
-        #mainMenu { position: absolute; inset: 0; background: rgba(13, 13, 26, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; border-radius: 7px; }
-        .title { font-size: 45px; color: var(--primary-color); margin-bottom: 30px; text-shadow: 0 0 15px rgba(0, 242, 255, 0.6); letter-spacing: 3px; font-weight: bold; }
-        .mode-btn { padding: 15px 50px; font-size: 18px; cursor: pointer; background: var(--card-bg); color: white; border: 1px solid #444; margin: 10px; border-radius: 50px; transition: 0.3s; width: 320px; font-weight: bold; text-decoration: none; text-align: center; border: none; outline: none; }
-        .mode-btn:hover { background: var(--primary-color); color: #000; transform: translateY(-3px); box-shadow: 0 0 20px rgba(0, 242, 255, 0.4); }
-        .exit-btn { background: transparent; border: 1px solid var(--secondary-color); color: var(--secondary-color); }
-        .exit-btn:hover { background: var(--secondary-color); color: white; }
-
-        .ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; pointer-events: none; display: none; }
-        .health-box { width: 300px; background: rgba(26, 26, 46, 0.8); padding: 10px; border-radius: 10px; }
-        .bar-bg { width: 100%; height: 15px; background: #000; border-radius: 10px; margin-top: 5px; overflow: hidden; }
-        .bar-fill { height: 100%; width: 100%; transition: width 0.3s; }
-        #p1Health { background: linear-gradient(90deg, #00f2ff, #0066ff); }
-        #p2Health { background: linear-gradient(90deg, #e94560, #8b0000); }
+        :root { --bg: #0d0d1a; --primary: #00f2ff; --secondary: #e94560; }
+        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #gameBox { position: relative; width: 900px; height: 450px; border: 2px solid #333; }
+        canvas { background: #16213e; display: block; width: 100%; height: 100%; }
         
-        #midGameExit { position: absolute; bottom: 20px; right: 20px; padding: 8px 15px; background: rgba(233, 69, 96, 0.6); color: white; text-decoration: none; border-radius: 5px; font-size: 12px; display: none; z-index: 60; border: 1px solid var(--secondary-color); }
-        #midGameExit:hover { background: var(--secondary-color); }
+        #menu { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        .btn { padding: 12px 40px; margin: 10px; background: #1a1a2e; color: white; border: 1px solid var(--primary); border-radius: 50px; cursor: pointer; width: 250px; font-size: 16px; }
+        .btn:hover { background: var(--primary); color: black; }
         
-        #gameOverMenu { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); display: none; flex-direction: column; gap: 10px; z-index: 110; }
-        .win-text { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 60px; font-weight: bold; display: none; z-index: 105; text-shadow: 0 0 20px #000; }
-        #status { position: absolute; bottom: 10px; left: 20px; font-size: 12px; color: #888; display: none; }
+        #ui { position: absolute; top: 20px; width: 100%; display: none; justify-content: space-around; pointer-events: none; }
+        .hp-bar { width: 300px; height: 15px; background: #000; border: 1px solid #555; border-radius: 10px; overflow: hidden; }
+        .hp-fill { height: 100%; width: 100%; transition: 0.3s; }
+        
+        #exitBtn { position: absolute; bottom: 20px; right: 20px; padding: 5px 15px; background: var(--secondary); color: white; text-decoration: none; border-radius: 5px; font-size: 12px; display: none; z-index: 101; }
     </style>
 </head>
 <body>
-
-<div id="gameContainer">
-    <div id="mainMenu">
-        <div class="title">ARCADE FIGHTER</div>
-        <button class="mode-btn" onclick="initGame('single')">單人挑戰 (支援 J/K/L)</button>
-        <button class="mode-btn" onclick="initGame('pvp')">雙人對戰 (僅限 Z/X/C)</button>
-        <a href="index.html" class="mode-btn exit-btn">返回遊戲大廳</a>
+    <div id="gameBox">
+        <div id="menu">
+            <h1 style="color:var(--primary)">ARCADE FIGHTER</h1>
+            <button class="btn" onclick="startGame(true)">單人模式 (WASD / JKL)</button>
+            <button class="btn" onclick="startGame(false)">雙人模式 (WASD / Arrows)</button>
+            <a href="index.html" class="btn" style="border-color:var(--secondary); text-align:center; text-decoration:none;">返回大廳</a>
+        </div>
+        <div id="ui">
+            <div class="hp-bar"><div id="p1h" class="hp-fill" style="background:var(--primary)"></div></div>
+            <div class="hp-bar"><div id="p2h" class="hp-fill" style="background:var(--secondary)"></div></div>
+        </div>
+        <a href="index.html" id="exitBtn">放棄戰鬥</a>
+        <canvas id="canvas" width="900" height="450"></canvas>
     </div>
 
-    <a href="index.html" id="midGameExit">放棄戰鬥 (退出)</a>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let keys = {}, gameActive = false, isSingle = true;
+        let p1, p2;
 
-    <div class="ui-layer" id="gameUI">
-        <div class="health-box"><div class="bar-bg"><div id="p1Health" class="bar-fill"></div></div></div>
-        <div class="health-box"><div class="bar-bg"><div id="p2Health" class="bar-fill"></div></div></div>
-    </div>
-
-    <div id="winDisplay" class="win-text"></div>
-    <div id="gameOverMenu">
-        <button class="mode-btn" onclick="location.reload()">再戰一局</button>
-        <a href="index.html" class="mode-btn exit-btn">回大廳</a>
-    </div>
-
-    <canvas id="gameCanvas" width="900" height="450"></canvas>
-    <div id="status">P1: WASD+ZXC | P2: Arrows+JKL</div>
-</div>
-
-<script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const keys = {};
-    let gameActive = false, isSinglePlayer = true, p1, p2;
-
-    class Fighter {
-        constructor({position, color, id, isAI}) {
-            this.id = id; this.position = position; this.velocity = {x:0, y:0};
-            this.color = color; this.isAI = isAI; this.health = 100;
-            this.state = 'IDLE'; this.facing = id === 1 ? 1 : -1;
-            this.hitstun = 0; this.stunTimer = 0; this.shieldHP = 5; this.skillCD = 0;
-        }
-        draw() {
-            ctx.fillStyle = this.state === 'HURT' ? 'white' : (this.state === 'BLOCK' ? '#FFD700' : this.color);
-            ctx.fillRect(this.position.x, this.position.y, 50, 80);
-            if(this.state === 'ATTACK') {
-                ctx.fillStyle = 'white';
-                ctx.fillRect(this.facing === 1 ? this.position.x+50 : this.position.x-30, this.position.y+20, 30, 10);
+        class Player {
+            constructor(x, color, id) {
+                this.x = x; this.y = 300; this.color = color; this.id = id;
+                this.hp = 100; this.vx = 0; this.vy = 0; this.state = 'IDLE'; this.dir = id === 1 ? 1 : -1;
+            }
+            draw() {
+                ctx.fillStyle = this.state === 'HURT' ? 'white' : this.color;
+                ctx.fillRect(this.x, this.y, 40, 60);
+                if(this.state === 'ATK') {
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(this.dir === 1 ? this.x + 40 : this.x - 20, this.y + 20, 20, 10);
+                }
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= 0.8; this.vy *= 0.8;
+                this.x = Math.max(0, Math.min(860, this.x));
+                this.y = Math.max(200, Math.min(390, this.y));
+                this.draw();
+            }
+            atk(target) {
+                if(this.state !== 'IDLE') return;
+                this.state = 'ATK';
+                setTimeout(() => this.state = 'IDLE', 200);
+                if(Math.abs(this.x - target.x) < 60 && Math.abs(this.y - target.y) < 40) target.hit();
+            }
+            hit() {
+                this.hp -= 10; this.state = 'HURT';
+                document.getElementById(`p${this.id}h`).style.width = this.hp + '%';
+                setTimeout(() => this.state = 'IDLE', 200);
+                if(this.hp <= 0) { alert('Game Over!'); location.reload(); }
             }
         }
-        update() {
-            if(this.hitstun > 0) this.hitstun--;
-            else if(this.state !== 'STUNNED') {
-                this.position.x += this.velocity.x; this.position.y += this.velocity.y;
-                this.velocity.x *= 0.8; this.velocity.y *= 0.8;
+
+        window.onkeydown = e => keys[e.key.toLowerCase()] = true;
+        window.onkeyup = e => keys[e.key.toLowerCase()] = false;
+
+        function startGame(mode) {
+            isSingle = mode;
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('ui').style.display = 'flex';
+            document.getElementById('exitBtn').style.display = 'block';
+            p1 = new Player(100, '#00f2ff', 1);
+            p2 = new Player(750, '#e94560', 2);
+            gameActive = true; loop();
+        }
+
+        function loop() {
+            if(!gameActive) return;
+            ctx.clearRect(0,0,900,450);
+            // P1 控制
+            if(keys['w']) p1.vy = -5; if(keys['s']) p1.vy = 5;
+            if(keys['a']) { p1.vx = -5; p1.dir = -1; }
+            if(keys['d']) { p1.vx = 5; p1.dir = 1; }
+            if(keys['z'] || (isSingle && keys['j'])) p1.atk(p2);
+
+            // P2 控制
+            if(!isSingle) {
+                if(keys['arrowup']) p2.vy = -5; if(keys['arrowdown']) p2.vy = 5;
+                if(keys['arrowleft']) { p2.vx = -5; p2.dir = -1; }
+                if(keys['arrowright']) { p2.vx = 5; p2.dir = 1; }
+                if(keys['j']) p2.atk(p1);
+            } else {
+                p2.vx = p1.x > p2.x ? 2 : -2;
+                if(Math.random() < 0.01) p2.atk(p1);
             }
-            this.position.x = Math.max(0, Math.min(canvas.width - 50, this.position.x));
-            this.position.y = Math.max(150, Math.min(canvas.height - 80, this.position.y));
-            this.draw();
+
+            p1.update(); p2.update();
+            requestAnimationFrame(loop);
         }
-        performAttack(target) {
-            if(this.state !== 'IDLE' || this.hitstun > 0) return;
-            this.state = 'ATTACK';
-            setTimeout(() => { if(this.state==='ATTACK') this.state='IDLE'; }, 200);
-            if(Math.abs(this.position.x - target.position.x) < 80 && Math.abs(this.position.y - target.position.y) < 50) {
-                target.receiveHit(10);
-            }
-        }
-        receiveHit(dmg) {
-            if(this.state === 'BLOCK') dmg /= 5;
-            this.health -= dmg;
-            this.state = 'HURT'; this.hitstun = 10;
-            document.getElementById(`p${this.id}Health`).style.width = this.health + '%';
-            if(this.health <= 0) finishGame(this.id === 1 ? 2 : 1);
-            setTimeout(() => { if(this.state==='HURT') this.state='IDLE'; }, 200);
-        }
-    }
-
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-
-    function initGame(mode) {
-        isSinglePlayer = mode === 'single';
-        document.getElementById('mainMenu').style.display = 'none';
-        document.getElementById('gameUI').style.display = 'flex';
-        document.getElementById('midGameExit').style.display = 'block';
-        p1 = new Fighter({position:{x:100,y:250}, color:'#00f2ff', id:1, isAI:false});
-        p2 = new Fighter({position:{x:700,y:250}, color:'#e94560', id:2, isAI:isSinglePlayer});
-        gameActive = true; updateLoop();
-    }
-
-    function handleInput() {
-        if(!gameActive) return;
-        // P1 WASD 移動
-        if(keys['w']) p1.velocity.y = -5; if(keys['s']) p1.velocity.y = 5;
-        if(keys['a']) { p1.velocity.x = -5; p1.facing = -1; }
-        if(keys['d']) { p1.velocity.x = 5; p1.facing = 1; }
-        // P1 攻擊
-        if(keys['z'] || (isSinglePlayer && keys['j'])) p1.performAttack(p2);
-        if(keys['x'] || (isSinglePlayer && keys['k'])) p1.state = 'BLOCK';
-        else if(p1.state === 'BLOCK') p1.state = 'IDLE';
-
-        // P2 (雙人模式)
-        if(!isSinglePlayer) {
-            if(keys['arrowup']) p2.velocity.y = -5; if(keys['arrowdown']) p2.velocity.y = 5;
-            if(keys['arrowleft']) { p2.velocity.x = -5; p2.facing = -1; }
-            if(keys['arrowright']) { p2.velocity.x = 5; p2.facing = 1; }
-            if(keys['j']) p2.performAttack(p1);
-            if(keys['k']) p2.state = 'BLOCK';
-            else if(p2.state === 'BLOCK') p2.state = 'IDLE';
-        } else {
-            // 簡單 AI
-            if(Math.random() < 0.02) p2.performAttack(p1);
-            p2.velocity.x = p1.position.x > p2.position.x ? 2 : -2;
-        }
-    }
-
-    function finishGame(winner) {
-        gameActive = false;
-        const winDisp = document.getElementById('winDisplay');
-        winDisp.innerText = "PLAYER " + winner + " WINS!";
-        winDisp.style.display = 'block';
-        winDisp.style.color = winner === 1 ? '#00f2ff' : '#e94560';
-        document.getElementById('gameOverMenu').style.display = 'flex';
-    }
-
-    function updateLoop() {
-        if(!gameActive && !p1) return;
-        ctx.clearRect(0,0,900,450);
-        handleInput();
-        p1.update(); p2.update();
-        if(gameActive) requestAnimationFrame(updateLoop);
-    }
-</script>
+    </script>
 </body>
 </html>

@@ -2,94 +2,176 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>打磚塊進化版 - 遊戲館</title>
+    <title>打磚塊進化版 - 霓虹電玩館</title>
     <style>
-        :root { --primary: #00f2ff; --bg: #0d0d1a; --danger: #e94560; }
-        body { background: var(--bg); color: white; text-align: center; font-family: Arial; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        .stats { display: flex; gap: 20px; margin-bottom: 10px; font-size: 1.2em; color: var(--primary); font-weight: bold; }
-        canvas { background: #000; border: 2px solid var(--primary); box-shadow: 0 0 20px rgba(0, 242, 255, 0.3); border-radius: 5px; }
-        .back-btn { margin-top: 20px; padding: 10px 20px; background: var(--danger); color: white; text-decoration: none; border-radius: 50px; transition: 0.3s; }
-        .back-btn:hover { box-shadow: 0 0 15px var(--danger); transform: scale(1.1); }
+        :root { 
+            --primary: #00f2ff; 
+            --bg: #0d0d1a; 
+            --danger: #e94560; 
+            --text: #e0e0e0;
+        }
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            text-align: center; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+        .stats-bar { 
+            display: flex; 
+            gap: 30px; 
+            margin-bottom: 15px; 
+            font-size: 1.2rem; 
+            color: var(--primary); 
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+        }
+        canvas { 
+            background: #000; 
+            border: 3px solid #333; 
+            box-shadow: 0 0 25px rgba(0, 242, 255, 0.2); 
+            border-radius: 8px; 
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        .btn { 
+            padding: 10px 25px; 
+            background: var(--danger); 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 50px; 
+            font-weight: bold;
+            transition: 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover { 
+            box-shadow: 0 0 15px var(--danger); 
+            transform: scale(1.05); 
+        }
     </style>
 </head>
 <body>
-    <div class="stats">
+
+    <div class="stats-bar">
         <span>關卡: <span id="levelDisplay">1</span>/5</span>
-        <span>時間: <span id="timeDisplay">0</span>s</span>
         <span>得分: <span id="scoreDisplay">0</span></span>
+        <span>用時: <span id="timeDisplay">0</span>s</span>
     </div>
-    <canvas id="myCanvas"></canvas>
-    <br><a href="index.html" class="back-btn">返回遊戲大廳</a>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="controls">
+        <button class="btn" onclick="location.reload()">重新開始</button>
+        <a href="index.html" class="btn" style="background: #1a1a2e; border: 1px solid #444;">返回大廳</a>
+    </div>
 
     <script>
-        const canvas = document.getElementById("myCanvas");
+        const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
-        
+
+        // 遊戲狀態
         let level = 1;
         let score = 0;
+        let totalScore = 0;
         let startTime = Date.now();
-        let ballRadius = 8;
-        let x, y, dx, dy, paddleX;
-        let paddleWidth = 90, paddleHeight = 12;
-        let rightPressed = false, leftPressed = false;
-        let bricks = [];
         
-        // 關卡設定
+        // 球與球板變數
+        let x, y, dx, dy;
+        const ballRadius = 8;
+        const paddleHeight = 12;
+        const paddleWidth = 100;
+        let paddleX;
+        let rightPressed = false;
+        let leftPressed = false;
+
+        // 磚塊設定
+        let bricks = [];
         const levelConfig = [
-            { r: 3, c: 5, w: 480, h: 320, speed: 3 },
-            { r: 4, c: 6, w: 540, h: 360, speed: 3.5 },
-            { r: 5, c: 7, w: 600, h: 400, speed: 4 },
-            { r: 6, c: 8, w: 660, h: 440, speed: 4.5 },
-            { r: 7, c: 9, w: 720, h: 480, speed: 5 }
+            { rows: 3, cols: 6, width: 480, height: 320, speed: 3 },
+            { rows: 4, cols: 7, width: 560, height: 380, speed: 4 },
+            { rows: 5, cols: 8, width: 640, height: 440, speed: 4.5 },
+            { rows: 6, cols: 9, width: 720, height: 500, speed: 5 },
+            { rows: 7, cols: 10, width: 800, height: 560, speed: 6 }
         ];
 
         function initLevel() {
-            const config = levelConfig[level-1];
-            canvas.width = config.w;
-            canvas.height = config.h;
+            const config = levelConfig[level - 1];
+            canvas.width = config.width;
+            canvas.height = config.height;
+            
             x = canvas.width / 2;
             y = canvas.height - 30;
             dx = config.speed;
             dy = -config.speed;
             paddleX = (canvas.width - paddleWidth) / 2;
             
+            // 初始化磚塊矩陣
             bricks = [];
-            for(let c=0; c<config.c; c++) {
+            for (let c = 0; c < config.cols; c++) {
                 bricks[c] = [];
-                for(let r=0; r<config.r; r++) {
+                for (let r = 0; r < config.rows; r++) {
                     bricks[c][r] = { x: 0, y: 0, status: 1 };
                 }
             }
             document.getElementById("levelDisplay").innerText = level;
         }
 
+        // 鍵盤監聽
         document.addEventListener("keydown", (e) => {
-            if(e.key == "Right" || e.key == "ArrowRight") rightPressed = true;
-            else if(e.key == "Left" || e.key == "ArrowLeft") leftPressed = true;
+            if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true;
+            else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true;
         });
         document.addEventListener("keyup", (e) => {
-            if(e.key == "Right" || e.key == "ArrowRight") rightPressed = false;
-            else if(e.key == "Left" || e.key == "ArrowLeft") leftPressed = false;
+            if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false;
+            else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false;
         });
 
-        // 請替換 game4.html 中的 collisionDetection 函數
         function collisionDetection() {
-            const config = levelConfig[level-1];
-            let bw = (canvas.width - 60) / config.c - 10;
-            for(let c=0; c<config.c; c++) {
-                for(let r=0; r<config.r; r++) {
+            const config = levelConfig[level - 1];
+            // 計算與 drawBricks 相同的間距
+            const padding = 10;
+            const offsetTop = 40;
+            const offsetLeft = 30;
+            const brickWidth = (canvas.width - (offsetLeft * 2) - (padding * (config.cols - 1))) / config.cols;
+            const brickHeight = 20;
+
+            for (let c = 0; c < config.cols; c++) {
+                for (let r = 0; r < config.rows; r++) {
                     let b = bricks[c][r];
-                    if(b.status == 1) {
-                // 重新計算當前磚塊的精確位置
-                        let bx = c * (bw + 10) + 30;
-                        let by = r * (20 + 10) + 30;
-                        if(x > bx && x < bx + bw && y > by && y < by + 20) {
+                    if (b.status === 1) {
+                        // 精確計算磚塊位置
+                        let bx = c * (brickWidth + padding) + offsetLeft;
+                        let by = r * (brickHeight + padding) + offsetTop;
+                        
+                        // 碰撞檢查邏輯
+                        if (x > bx && x < bx + brickWidth && y > by && y < by + brickHeight) {
                             dy = -dy;
-                            b.status = 0; // 隱藏磚塊
+                            b.status = 0; // 磚塊消失
                             score++;
                             document.getElementById("scoreDisplay").innerText = score;
-                            if(score == config.r * config.c) {
-                        // 勝利邏輯...
+
+                            // 檢查是否清空磚塊
+                            if (score === config.rows * config.cols) {
+                                if (level < 5) {
+                                    alert("恭喜！挑戰第 " + (level + 1) + " 關");
+                                    level++;
+                                    score = 0;
+                                    initLevel();
+                                } else {
+                                    const finalTime = document.getElementById("timeDisplay").innerText;
+                                    alert("全關卡達成！總耗時: " + finalTime + "秒");
+                                    location.reload();
+                                }
                             }
                         }
                     }
@@ -97,68 +179,98 @@
             }
         }
 
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // 畫磚塊
-            const config = levelConfig[level-1];
-            let bw = (canvas.width - 60) / config.c - 10;
-            for(let c=0; c<config.c; c++) {
-                for(let r=0; r<config.r; r++) {
-                    if(bricks[c][r].status == 1) {
-                        let bx = c * (bw + 10) + 30;
-                        let by = r * (20 + 10) + 30;
-                        bricks[c][r].x = bx; bricks[c][r].y = by;
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#fff";
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = varColor(0);
+            ctx.fill();
+            ctx.closePath();
+            ctx.shadowBlur = 0;
+        }
+
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddleX, canvas.height - paddleHeight - 5, paddleWidth, paddleHeight);
+            ctx.fillStyle = "#00f2ff";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawBricks() {
+            const config = levelConfig[level - 1];
+            const padding = 10;
+            const offsetTop = 40;
+            const offsetLeft = 30;
+            const brickWidth = (canvas.width - (offsetLeft * 2) - (padding * (config.cols - 1))) / config.cols;
+            const brickHeight = 20;
+
+            for (let c = 0; c < config.cols; c++) {
+                for (let r = 0; r < config.rows; r++) {
+                    if (bricks[c][r].status === 1) {
+                        let bx = c * (brickWidth + padding) + offsetLeft;
+                        let by = r * (brickHeight + padding) + offsetTop;
+                        bricks[c][r].x = bx;
+                        bricks[c][r].y = by;
+                        ctx.beginPath();
+                        ctx.rect(bx, by, brickWidth, brickHeight);
                         ctx.fillStyle = varColor(r);
-                        ctx.fillRect(bx, by, bw, 20);
+                        ctx.fill();
+                        ctx.closePath();
                     }
                 }
             }
-
-            // 畫球
-            ctx.beginPath(); ctx.arc(x, y, ballRadius, 0, Math.PI*2);
-            ctx.fillStyle = "#fff"; ctx.fill(); ctx.closePath();
-
-            // 畫板
-            ctx.fillStyle = levelConfig[level-1].speed > 4 ? "#e94560" : "#00f2ff";
-            ctx.fillRect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
-
-            // 更新時間
-            document.getElementById("timeDisplay").innerText = Math.floor((Date.now() - startTime) / 1000);
-
-            // 碰撞邊界
-            if(x + dx > canvas.width - ballRadius || x + dx < ballRadius) dx = -dx;
-            if(y + dy < ballRadius) dy = -dy;
-            else if(y + dy > canvas.height - ballRadius) {
-                if(x > paddleX && x < paddleX + paddleWidth) {
-                    // 加速邏輯：同向加速，反向減速
-                    if((rightPressed && dx > 0) || (leftPressed && dx < 0)) {
-                        dx *= 1.3; // 同向加速
-                    } else if((rightPressed && dx < 0) || (leftPressed && dx > 0)) {
-                        dx *= 0.7; // 反向減速
-                    }
-                    // 限制最大最小速度，避免遊戲崩潰
-                    dx = Math.min(Math.max(dx, -8), 8);
-                    dy = -dy;
-                } else {
-                    alert("遊戲結束！"); location.reload(); return;
-                }
-            }
-
-            if(rightPressed && paddleX < canvas.width - paddleWidth) paddleX += 7;
-            else if(leftPressed && paddleX > 0) paddleX -= 7;
-
-            x += dx; y += dy;
-            requestAnimationFrame(draw);
         }
 
         function varColor(r) {
-            const colors = ["#00f2ff", "#00d2ff", "#00b2ff", "#0092ff", "#0072ff", "#0052ff", "#0032ff"];
-            return colors[r % colors.length];
+            const palette = ["#00f2ff", "#00d2ff", "#00b2ff", "#0092ff", "#e94560", "#ff0055"];
+            return palette[r % palette.length];
         }
 
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBricks();
+            drawBall();
+            drawPaddle();
+            collisionDetection();
+
+            // 更新計時
+            document.getElementById("timeDisplay").innerText = Math.floor((Date.now() - startTime) / 1000);
+
+            // 邊界反彈
+            if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) dx = -dx;
+            if (y + dy < ballRadius) dy = -dy;
+            else if (y + dy > canvas.height - ballRadius - 5) {
+                if (x > paddleX && x < paddleX + paddleWidth) {
+                    // 同向加速物理邏輯
+                    if ((rightPressed && dx > 0) || (leftPressed && dx < 0)) {
+                        dx *= 1.2;
+                    } else if ((rightPressed && dx < 0) || (leftPressed && dx > 0)) {
+                        dx *= 0.8;
+                    }
+                    // 速度上下限保護
+                    dx = Math.max(Math.min(dx, 10), -10);
+                    dy = -dy;
+                } else {
+                    alert("遊戲結束！");
+                    location.reload();
+                    return;
+                }
+            }
+
+            // 移動球板
+            if (rightPressed && paddleX < canvas.width - paddleWidth) paddleX += 8;
+            else if (leftPressed && paddleX > 0) paddleX -= 8;
+
+            x += dx;
+            y += dy;
+            requestAnimationFrame(update);
+        }
+
+        // 初始化並執行
         initLevel();
-        draw();
+        update();
     </script>
 </body>
 </html>
