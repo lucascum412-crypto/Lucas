@@ -1,97 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-    <title>方塊飛行員 - 遊戲館</title>
+    <meta charset="UTF-8">
+    <title>飛行員 - 遊戲館</title>
     <style>
-        body { background: #222; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; font-family: Arial; color: white; }
+        body { background: #222; text-align: center; font-family: Arial; color: white; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;}
         canvas { background: #70c5ce; border: 2px solid #fff; }
-        .back-btn { margin-top: 15px; padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
+        .back-btn { margin-top: 10px; padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
     </style>
 </head>
 <body onclick="jump()">
-    <h2>🚀 方塊飛行員</h2>
-    <p>點擊畫面或按空白鍵跳躍</p>
-    <canvas id="gameCanvas" width="320" height="480"></canvas>
-    <a href="index.html" class="back-btn">回大廳</a>
-
+    <h2>🚀 方塊飛行員 (點擊跳躍)</h2>
+    <canvas id="c" width="320" height="480"></canvas>
+    <br><a href="index.html" class="back-btn">回大廳</a>
     <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-
-        let birdY = 200;
-        let velocity = 0;
-        let gravity = 0.25;
-        let pipes = [];
-        let score = 0;
-        let isGameOver = false;
-
-        function jump() {
-            if (isGameOver) { location.reload(); return; }
-            velocity = -5;
-        }
-
-        window.addEventListener("keydown", (e) => { if(e.code === "Space") jump(); });
-
-        function createPipe() {
-            const gap = 120;
-            const minHeight = 50;
-            const height = Math.floor(Math.random() * (canvas.height - gap - 2 * minHeight)) + minHeight;
-            pipes.push({ x: canvas.width, top: height, bottom: canvas.height - height - gap });
-        }
-
+        const cvs = document.getElementById("c"); const ctx = cvs.getContext("2d");
+        let birdY = 200, v = 0, g = 0.2, pipes = [], score = 0, over = false;
+        function jump() { if(over) location.reload(); v = -4.5; }
+        window.addEventListener("keydown", e => { if(e.code==="Space") jump(); });
         function draw() {
-            ctx.fillStyle = "#70c5ce"; // 背景
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // 繪製主角
-            velocity += gravity;
-            birdY += velocity;
-            ctx.fillStyle = "yellow";
-            ctx.fillRect(50, birdY, 30, 30);
-
-            // 障礙物邏輯
-            if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 150) createPipe();
-
-            for (let i = pipes.length - 1; i >= 0; i--) {
-                pipes[i].x -= 2;
-
-                // 繪製上管子
-                ctx.fillStyle = "green";
-                ctx.fillRect(pipes[i].x, 0, 50, pipes[i].top);
-                // 繪製下管子
-                ctx.fillRect(pipes[i].x, canvas.height - pipes[i].bottom, 50, pipes[i].bottom);
-
-                // 碰撞檢測
-                if (50 + 30 > pipes[i].x && 50 < pipes[i].x + 50) {
-                    if (birdY < pipes[i].top || birdY + 30 > canvas.height - pipes[i].bottom) {
-                        gameOver();
-                    }
-                }
-
-                if (pipes[i].x === 50) score++;
-                if (pipes[i].x < -50) pipes.splice(i, 1);
+            ctx.fillStyle = "#70c5ce"; ctx.fillRect(0,0,cvs.width,cvs.height);
+            v += g; birdY += v; ctx.fillStyle = "yellow"; ctx.fillRect(50, birdY, 30, 30);
+            if(pipes.length==0 || pipes[pipes.length-1].x < 170) {
+                let h = Math.random()*200 + 50; pipes.push({x:320, t:h, b:480-h-120});
             }
-
-            // 地面與邊界
-            if (birdY > canvas.height || birdY < 0) gameOver();
-
-            ctx.fillStyle = "white";
-            ctx.font = "20px Arial";
-            ctx.fillText("分數: " + score, 10, 30);
-
-            if (!isGameOver) requestAnimationFrame(draw);
+            for(let i=pipes.length-1; i>=0; i--) {
+                pipes[i].x -= 2; ctx.fillStyle = "green";
+                ctx.fillRect(pipes[i].x, 0, 50, pipes[i].t);
+                ctx.fillRect(pipes[i].x, 480-pipes[i].b, 50, pipes[i].b);
+                if(50+30 > pipes[i].x && 50 < pipes[i].x+50 && (birdY < pipes[i].t || birdY+30 > 480-pipes[i].b)) over = true;
+                if(pipes[i].x == 50) score++;
+                if(pipes[i].x < -50) pipes.splice(i, 1);
+            }
+            if(birdY > 480 || birdY < 0) over = true;
+            ctx.fillStyle = "white"; ctx.font = "20px Arial"; ctx.fillText("分數: "+score, 10, 25);
+            if(!over) requestAnimationFrame(draw); else alert("遊戲結束！分數: "+score);
         }
-
-        function gameOver() {
-            isGameOver = true;
-            ctx.fillStyle = "rgba(0,0,0,0.5)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "white";
-            ctx.textAlign = "center";
-            ctx.fillText("遊戲結束", canvas.width/2, canvas.height/2);
-            ctx.fillText("點擊重新開始", canvas.width/2, canvas.height/2 + 40);
-        }
-
         draw();
     </script>
 </body>

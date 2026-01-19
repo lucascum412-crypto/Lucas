@@ -1,55 +1,33 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
+    <meta charset="UTF-8">
     <title>猜數字 - 遊戲館</title>
     <style>
-        body { background: #222; color: white; text-align: center; padding-top: 50px; font-family: Arial; }
-        input { padding: 10px; font-size: 1.2em; text-align: center; width: 100px; border-radius: 5px; border: none;}
-        button { padding: 10px 20px; font-size: 1.2em; background: #e94560; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .back-btn { margin-top: 30px; display: inline-block; padding: 10px 20px; background: #fff; color: #222; text-decoration: none; border-radius: 5px; }
-        #result { margin-top: 20px; font-size: 1.5em; font-weight: bold; }
+        body { background: #1a1a2e; color: white; text-align: center; font-family: Arial; padding-top: 100px; }
+        input { padding: 10px; font-size: 1.2em; border-radius: 5px; border: none; width: 100px; text-align: center; }
+        button { padding: 10px 20px; font-size: 1em; background: #00f2ff; border: none; border-radius: 5px; cursor: pointer; }
+        #msg { margin-top: 20px; font-size: 1.5em; color: #e94560; }
+        .back-btn { margin-top: 30px; display: inline-block; padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <h2>🔢 猜數字 (1 - 100)</h2>
-    <p>系統已經想好了一個數字，試著猜中它！</p>
-    
-    <input type="number" id="guessInput" min="1" max="100">
-    <button onclick="checkGuess()">猜！</button>
-    
-    <div id="result"></div>
-    <p>猜測次數: <span id="count">0</span></p>
-
-    <a href="index.html" class="back-btn">回大廳</a>
-
+    <h2>🔢 猜數字挑戰 (1-100)</h2>
+    <input type="number" id="numInp" placeholder="數字">
+    <button onclick="guess()">猜！</button>
+    <div id="msg">來試試手氣吧！</div>
+    <br><a href="index.html" class="back-btn">回大廳</a>
     <script>
-        let targetNumber = Math.floor(Math.random() * 100) + 1;
+        let target = Math.floor(Math.random() * 100) + 1;
         let count = 0;
-
-        function checkGuess() {
-            let userGuess = parseInt(document.getElementById('guessInput').value);
-            let resultText = document.getElementById('result');
-            
-            if (isNaN(userGuess) || userGuess < 1 || userGuess > 100) {
-                resultText.innerText = "請輸入 1 到 100 之間的數字";
-                resultText.style.color = "yellow";
-                return;
-            }
-
-            count++;
-            document.getElementById('count').innerText = count;
-
-            if (userGuess === targetNumber) {
-                resultText.innerText = "🎉 恭喜！你猜對了！答案就是 " + targetNumber;
-                resultText.style.color = "#00ff00";
-                document.querySelector('button').disabled = true;
-            } else if (userGuess < targetNumber) {
-                resultText.innerText = "太小了！再大一點";
-                resultText.style.color = "cyan";
-            } else {
-                resultText.innerText = "太大了！再小一點";
-                resultText.style.color = "orange";
-            }
+        function guess() {
+            let val = document.getElementById('numInp').value;
+            let m = document.getElementById('msg');
+            if(!val) return; count++;
+            if(val == target) { m.innerText = `猜對了！次數：${count}`; alert("恭喜！"); location.reload(); }
+            else if (val > target) m.innerText = "太大了！再小一點";
+            else m.innerText = "太小了！再大一點";
+            document.getElementById('numInp').value = "";
         }
     </script>
 </body>
