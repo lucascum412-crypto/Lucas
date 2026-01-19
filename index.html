@@ -2,28 +2,20 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy Hub - All-in-One</title>
+    <title>Galaxy Hub - Auto Return Edition</title>
     <style>
         :root { --bg: #020205; --primary: #00f2ff; }
         body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
         
-        /* 1. 歡迎介面 */
+        /* 歡迎介面 */
         #welcomeOverlay {
             position: fixed; inset: 0; background: radial-gradient(circle, #0a0a25 0%, #000 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
         }
 
-        /* 2. 遊戲內層 (預設隱藏) */
-        #gameOverlay {
-            position: fixed; inset: 0; background: rgba(5, 5, 15, 0.95);
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 5000; color: white; text-align: center;
-        }
-
         .btn { 
             padding: 15px 50px; font-size: 20px; background: transparent; border: 2px solid var(--primary);
             color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold;
-            text-transform: uppercase; margin-top: 20px;
         }
         .btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 30px var(--primary); }
 
@@ -41,13 +33,6 @@
     <button class="btn" onclick="initGame()">ENTER SYSTEM</button>
 </div>
 
-<div id="gameOverlay">
-    <h1 id="activeGameTitle" style="font-size: 40px; color: var(--primary);">GAME START</h1>
-    <div style="width: 100px; height: 100px; border: 5px solid var(--primary); margin: 30px; animation: spin 2s linear infinite;"></div>
-    <p>這是遊戲內部的預覽畫面</p>
-    <button class="btn" onclick="backToHub()">返回大廳</button>
-</div>
-
 <div id="hintUI">PRESS <b style="color:var(--primary)">[SPACE]</b> TO ENTER <span id="gameName"></span></div>
 <canvas id="gameCanvas"></canvas>
 
@@ -56,7 +41,6 @@
     const ctx = canvas.getContext('2d');
     const hintUI = document.getElementById('hintUI');
     const nameLabel = document.getElementById('gameName');
-    const gameOverlay = document.getElementById('gameOverlay');
 
     let player = { x: 0, y: 0, w: 24, h: 48, speed: 4.5, color: '#00f2ff', anim: 0, dir: 1 };
     let keys = {};
@@ -65,17 +49,16 @@
     let frameCount = 0;
 
     const gateData = [
-        { name: "NEON FIGHTER", row: "top", color: "#00f2ff" },
-        { name: "SPACE DRIFT", row: "top", color: "#ff0077" },
-        { name: "CYBER PUZZLE", row: "top", color: "#7000ff" },
-        { name: "BIO HAZARD", row: "top", color: "#39ff14" },
-        { name: "GOLD MINER", row: "bottom", color: "#ffd700" },
-        { name: "TECHNO RUN", row: "bottom", color: "#00f2ff" },
-        { name: "RHYTHM BOT", row: "bottom", color: "#ff0077" },
-        { name: "VOID ESCAPE", row: "bottom", color: "#7000ff" }
+        { name: "NEON FIGHTER", row: "top", color: "#00f2ff", file: "game1.html" },
+        { name: "SPACE DRIFT", row: "top", color: "#ff0077", file: "game2.html" },
+        { name: "CYBER PUZZLE", row: "top", color: "#7000ff", file: "game3.html" },
+        { name: "BIO HAZARD", row: "top", color: "#39ff14", file: "game4.html" },
+        { name: "GOLD MINER", row: "bottom", color: "#ffd700", file: "game5.html" },
+        { name: "TECHNO RUN", row: "bottom", color: "#00f2ff", file: "game6.html" },
+        { name: "RHYTHM BOT", row: "bottom", color: "#ff0077", file: "game7.html" },
+        { name: "VOID ESCAPE", row: "bottom", color: "#7000ff", file: "game8.html" }
     ];
     let gates = [];
-
     const deco = {
         trees: [{x:0.25, y:0.5}, {x:0.42, y:0.5}, {x:0.58, y:0.5}, {x:0.75, y:0.5}],
         benches: [{x:0.33, y:0.42}, {x:0.67, y:0.42}],
@@ -95,10 +78,9 @@
         });
     }
 
-    // 初始化/返回大廳
+    // --- 核心改動：啟動邏輯 ---
     function initGame() {
         document.getElementById('welcomeOverlay').style.display = 'none';
-        gameOverlay.style.display = 'none';
         resize();
         if(npcs.length === 0) {
             for(let i=0; i<7; i++) {
@@ -112,29 +94,22 @@
         }
         player.x = canvas.width/2; player.y = canvas.height/2;
         running = true;
-        requestAnimationFrame(loop);
+        loop();
     }
 
-    // 進入遊戲內部
-    function enterGame(title) {
-        running = false; // 暫停大廳動畫
-        document.getElementById('activeGameTitle').innerText = title;
-        gameOverlay.style.display = 'flex';
-    }
-
-    // 返回大廳按鈕
-    function backToHub() {
-        gameOverlay.style.display = 'none';
-        running = true;
-        requestAnimationFrame(loop); // 重新啟動循環
-    }
+    // 檢查 URL 是否帶有 #back 標籤
+    window.onload = () => {
+        if (window.location.hash === "#back") {
+            initGame(); // 如果是從遊戲返回，直接啟動大廳
+        }
+    };
 
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
 
     function drawCharacter(char) {
         const { x, y, color, anim, dir } = char;
-        const isMoving = char === player ? (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight']) : true;
+        const isMoving = char === player ? (Object.values(keys).some(k => k)) : true;
         const walkCycle = isMoving ? Math.sin(frameCount * 0.15 + anim) : 0;
         
         ctx.save();
@@ -146,19 +121,18 @@
         ctx.beginPath(); ctx.moveTo(-5, 5); ctx.lineTo(-8 + walkCycle*6, 20); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(8 - walkCycle*6, 20); ctx.stroke();
 
-        // 身體
+        // 身體與頭
         ctx.fillStyle = "#111"; ctx.strokeStyle = color; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.roundRect(-10, -15, 20, 26, 4); ctx.fill(); ctx.stroke();
-
-        // 頭部與眼睛
-        ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(0, -28, 12, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, -28, 12, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        
+        // 發光眼睛
         ctx.shadowBlur = 8; ctx.shadowColor = color; ctx.fillStyle = color;
         ctx.fillRect(2, -31, 5, 2); ctx.fillRect(-7, -31, 5, 2);
         ctx.restore();
     }
 
     function update() {
-        if(!running) return;
         frameCount++;
         let nx = player.x, ny = player.y;
         if(keys['ArrowUp'] || keys['KeyW']) ny -= player.speed;
@@ -173,7 +147,7 @@
         if(curG) {
             hintUI.style.display = 'block';
             nameLabel.innerText = curG.name;
-            if(keys['Space']) enterGame(curG.name); // 觸發進入遊戲
+            if(keys['Space']) window.location.href = curG.file; // 跳轉到外部遊戲
         } else { hintUI.style.display = 'none'; }
 
         npcs.forEach(n => {
@@ -190,8 +164,8 @@
     function draw() {
         ctx.fillStyle = '#050508'; ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = '#101025';
-        for(let i=0; i<canvas.width; i+=80) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
-        for(let i=0; i<canvas.height; i+=80) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+        for(let x=0; x<canvas.width; x+=80) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+        for(let y=0; y<canvas.height; y+=80) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
 
         gates.forEach(g => {
             ctx.fillStyle = '#000'; ctx.fillRect(g.x, g.y, g.w, g.h);
@@ -199,14 +173,13 @@
             ctx.fillText(g.name, g.x + 65, g.row==='top'?g.y+165:g.y-20);
         });
 
-        // 渲染角色
         let entities = [...npcs, player].sort((a, b) => a.y - b.y);
         entities.forEach(ent => {
-            let inGate = gates.some(g => ent.x > g.x && ent.x < g.x+130 && ent.y > g.y && ent.y < g.y+140);
-            if(!inGate) drawCharacter(ent);
+            if(!gates.some(g => ent.x > g.x && ent.x < g.x+130 && ent.y > g.y && ent.y < g.y+140)) {
+                drawCharacter(ent);
+            }
         });
 
-        // 遮蓋層 (樹與門框)
         deco.trees.forEach(t => {
             const x=t.x*canvas.width, y=t.y*canvas.height;
             ctx.fillStyle='rgba(10, 40, 10, 0.9)'; ctx.shadowBlur=20; ctx.shadowColor='#39ff14';
@@ -227,11 +200,6 @@
             requestAnimationFrame(loop);
         }
     }
-
-    window.onresize = resize;
 </script>
-
-<style> @keyframes spin { to { transform: rotate(360deg); } } </style>
-
 </body>
 </html>
