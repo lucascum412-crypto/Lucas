@@ -11,8 +11,11 @@
         /* 選單樣式 */
         #mainMenu { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         .title { font-size: 50px; color: #ffcc00; margin-bottom: 30px; text-shadow: 4px 4px 0 #8b0000; letter-spacing: 5px; }
-        .mode-btn { padding: 15px 50px; font-size: 22px; cursor: pointer; background: #333; color: white; border: 2px solid #555; margin: 10px; border-radius: 8px; transition: 0.2s; width: 300px; font-weight: bold; }
+        .mode-btn { padding: 15px 50px; font-size: 22px; cursor: pointer; background: #333; color: white; border: 2px solid #555; margin: 10px; border-radius: 8px; transition: 0.2s; width: 300px; font-weight: bold; text-decoration: none; text-align: center; }
         .mode-btn:hover { background: #ffcc00; color: #000; border-color: #fff; transform: scale(1.05); }
+        
+        /* 退出按鈕專用顏色 */
+        .exit-btn { background: #8b0000; border-color: #a00; }
 
         /* 戰鬥 UI */
         .ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; pointer-events: none; visibility: hidden; }
@@ -23,7 +26,12 @@
         .shield-dots { display: flex; gap: 4px; margin-top: 8px; justify-content: inherit; }
         .dot { width: 15px; height: 8px; background: #ffcc00; border-radius: 2px; box-shadow: 0 0 5px rgba(255,204,0,0.5); }
         
-        #restartBtn { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); padding: 15px 40px; font-size: 20px; cursor: pointer; background: #fff; border: none; font-weight: bold; display: none; z-index: 50; border-radius: 5px; }
+        /* 結束畫面按鈕容器 */
+        #gameOverMenu { position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 50; flex-direction: column; gap: 15px; }
+        .end-btn { padding: 12px 40px; font-size: 20px; cursor: pointer; background: #fff; border: none; font-weight: bold; border-radius: 5px; text-decoration: none; color: black; text-align: center; }
+        .end-btn:hover { background: #ffcc00; }
+        .end-exit { background: #e94560; color: white; }
+
         #status { position: absolute; bottom: 15px; background: rgba(0,0,0,0.8); padding: 8px 25px; border-radius: 5px; font-size: 13px; visibility: hidden; border: 1px solid #444; }
         .win-text { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 60px; font-weight: bold; display: none; z-index: 10; text-shadow: 0 0 20px #000; text-align: center; }
         .key-hint { color: #ffcc00; font-weight: bold; }
@@ -36,6 +44,7 @@
         <div class="title">LITTLE FIGHTER 2.5</div>
         <button class="mode-btn" onclick="initGame('single')">單人對戰 (VS AI)</button>
         <button class="mode-btn" onclick="initGame('pvp')">雙人對戰 (Local PVP)</button>
+        <a href="index.html" class="mode-btn exit-btn">返回遊戲大廳</a>
     </div>
 
     <div class="ui-layer" id="gameUI">
@@ -56,7 +65,11 @@
     </div>
 
     <div id="winDisplay" class="win-text"></div>
-    <button id="restartBtn" onclick="location.reload()">返回選單</button>
+    
+    <div id="gameOverMenu">
+        <button class="end-btn" onclick="location.reload()">再戰一局</button>
+        <a href="index.html" class="end-btn end-exit">返回大廳</a>
+    </div>
     
     <canvas id="gameCanvas" width="900" height="450"></canvas>
     
@@ -67,6 +80,7 @@
 </div>
 
 <script>
+    // --- 遊戲邏輯部分：完全保留你原本的程式碼 ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const keys = {};
@@ -83,37 +97,33 @@
             this.color = color;
             this.isAI = isAI;
             this.health = 100;
-            this.state = 'IDLE'; // IDLE, ATTACK, BREAK, HURT, BLOCK, STUNNED
+            this.state = 'IDLE'; 
             this.facing = id === 1 ? 1 : -1;
             this.hitstun = 0;
             this.stunTimer = 0;
             this.shieldHP = 5;
-            this.skillCD = 0; // 破防技 3秒冷卻 (180幀)
+            this.skillCD = 0; 
         }
 
         draw() {
             const {x, y} = this.position;
-            // 陰影
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
             ctx.beginPath(); ctx.ellipse(x + 25, y + 80, 25, 8, 0, 0, Math.PI*2); ctx.fill();
 
-            // 狀態變色
-            if (this.state === 'STUNNED') ctx.fillStyle = '#aa00ff'; // 暈眩紫
+            if (this.state === 'STUNNED') ctx.fillStyle = '#aa00ff'; 
             else if (this.state === 'HURT') ctx.fillStyle = 'white';
-            else if (this.state === 'BLOCK') ctx.fillStyle = '#FFD700'; // 格擋金
+            else if (this.state === 'BLOCK') ctx.fillStyle = '#FFD700'; 
             else ctx.fillStyle = this.color;
 
-            // 身體與頭
             ctx.fillRect(x + 10, y + 25, 30, 40);
             ctx.fillStyle = '#ffdbac';
             ctx.fillRect(x + 15, y, 20, 25);
 
-            // 手部動作
             ctx.fillStyle = (this.state === 'BLOCK') ? '#FFD700' : this.color;
             if (this.state === 'ATTACK') {
                 ctx.fillRect(this.facing === 1 ? x + 35 : x - 15, y + 30, 30, 15);
             } else if (this.state === 'BREAK') {
-                ctx.fillStyle = '#00ffff'; // 破防藍光
+                ctx.fillStyle = '#00ffff'; 
                 ctx.fillRect(this.facing === 1 ? x + 35 : x - 25, y + 20, 40, 30);
             } else if (this.state === 'BLOCK') {
                 ctx.fillRect(x + 5, y + 15, 12, 35);
@@ -123,7 +133,6 @@
 
         update() {
             if (this.health <= 0) return;
-            
             if (this.stunTimer > 0) {
                 this.stunTimer--;
                 if (this.stunTimer === 0) { this.state = 'IDLE'; this.shieldHP = 5; this.updateShieldUI(); }
@@ -157,7 +166,7 @@
         performBreak(target) {
             if (this.state !== 'IDLE' || this.skillCD > 0 || this.health <= 0) return;
             this.state = 'BREAK';
-            this.skillCD = 180; // 3秒
+            this.skillCD = 180; 
             this.checkHit(target, 15, true);
             setTimeout(() => { if(this.state === 'BREAK') this.state = 'IDLE'; }, 400);
         }
@@ -177,7 +186,7 @@
                 this.velocity.x = direction * 5;
                 if (this.shieldHP <= 0) this.triggerStun();
             } else if (isBreakSkill && this.state === 'BLOCK') {
-                this.triggerStun(); // 直接破防
+                this.triggerStun(); 
                 this.health -= amt;
             } else {
                 this.health -= amt;
@@ -191,7 +200,7 @@
 
         triggerStun() {
             this.state = 'STUNNED';
-            this.stunTimer = 120; // 2秒
+            this.stunTimer = 120; 
             this.shieldHP = 0;
             this.updateShieldUI();
         }
@@ -242,7 +251,6 @@
     function handleInput() {
         if (!gameActive) return;
 
-        // P1 操作 (Z, X, C)
         if (p1.state === 'IDLE' || p1.state === 'BLOCK') {
             if (keys['w']) p1.velocity.y = -5; if (keys['s']) p1.velocity.y = 5;
             if (keys['a']) { p1.velocity.x = -5; p1.facing = -1; }
@@ -253,7 +261,6 @@
             else if (p1.state === 'BLOCK') p1.state = 'IDLE';
         }
 
-        // P2 操作 (J, K, L) - 僅在雙人模式
         if (!p2.isAI && (p2.state === 'IDLE' || p2.state === 'BLOCK')) {
             if (keys['arrowup']) p2.velocity.y = -5; if (keys['arrowdown']) p2.velocity.y = 5;
             if (keys['arrowleft']) { p2.velocity.x = -5; p2.facing = -1; }
@@ -265,19 +272,19 @@
         }
     }
 
+    // 修改結束處理邏輯
     function finishGame(winnerId) {
         gameActive = false;
         const winDisplay = document.getElementById('winDisplay');
         winDisplay.style.display = 'block';
         winDisplay.innerText = winnerId === 1 ? "PLAYER 1 WIN!" : (p2.isAI ? "AI WIN!" : "PLAYER 2 WIN!");
         winDisplay.style.color = winnerId === 1 ? "#4ef037" : "#ff4d4d";
-        document.getElementById('restartBtn').style.display = 'block';
+        // 顯示結束選單容器
+        document.getElementById('gameOverMenu').style.display = 'flex';
     }
 
     function updateLoop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 繪製背景地面
         ctx.fillStyle = '#4a7a80'; 
         ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
         ctx.strokeStyle = 'rgba(255,255,255,0.05)';
