@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>剪刀石頭布 - 遊戲館</title>
+    <style>
+        body { background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: Arial; }
+        .choices { display: flex; gap: 20px; margin: 30px; }
+        .choice { font-size: 4em; cursor: pointer; transition: 0.3s; background: #16213e; padding: 20px; border-radius: 50%; border: 2px solid transparent; }
+        .choice:hover { transform: scale(1.2); border-color: #e94560; }
+        #result { font-size: 1.5em; margin-bottom: 20px; height: 1.5em; }
+        .score { font-size: 1.2em; margin-top: 10px; }
+        .back-btn { margin-top: 30px; padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h2>✊✌️🖐️ 剪刀石頭布</h2>
+    <div id="result">點擊圖示開始比賽！</div>
+    
+    <div class="choices">
+        <div class="choice" onclick="play('🪨')">🪨</div>
+        <div class="choice" onclick="play('✂️')">✂️</div>
+        <div class="choice" onclick="play('🖐️')">🖐️</div>
+    </div>
+
+    <div class="score">玩家: <span id="p-score">0</span> | 電腦: <span id="c-score">0</span></div>
+    <a href="index.html" class="back-btn">回大廳</a>
+
+    <script>
+        let pScore = 0;
+        let cScore = 0;
+        const options = ['🪨', '✂️', '🖐️'];
+
+        function play(playerChoice) {
+            const computerChoice = options[Math.floor(Math.random() * 3)];
+            const resultDiv = document.getElementById("result");
+            
+            let result = "";
+            if (playerChoice === computerChoice) {
+                result = `平手！大家都出 ${playerChoice}`;
+            } else if (
+                (playerChoice === '🪨' && computerChoice === '✂️') ||
+                (playerChoice === '✂️' && computerChoice === '🖐️') ||
+                (playerChoice === '🖐️' && computerChoice === '🪨')
+            ) {
+                result = `你贏了！ ${playerChoice} 打敗 ${computerChoice}`;
+                pScore++;
+            } else {
+                result = `你輸了！ ${computerChoice} 打敗 ${playerChoice}`;
+                cScore++;
+            }
+
+            resultDiv.innerText = result;
+            document.getElementById("p-score").innerText = pScore;
+            document.getElementById("c-score").innerText = cScore;
+        }
+    </script>
+</body>
+</html>
