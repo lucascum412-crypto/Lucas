@@ -2,48 +2,110 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>記憶翻牌 - 遊戲館</title>
+    <title>記憶翻牌進化版 - 遊戲館</title>
     <style>
-        body { background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: Arial; }
-        .memory-game { width: 440px; display: flex; flex-wrap: wrap; perspective: 1000px; }
-        .card { width: 100px; height: 100px; margin: 5px; position: relative; transform-style: preserve-3d; transition: transform .5s; cursor: pointer; }
+        :root { --primary: #00f2ff; --bg: #0d0d1a; --danger: #e94560; }
+        body { background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: Arial; }
+        .stats { margin-bottom: 15px; font-size: 1.2em; color: var(--primary); font-weight: bold; }
+        .memory-game { display: flex; flex-wrap: wrap; perspective: 1000px; margin: 0 auto; }
+        .card { width: 80px; height: 80px; margin: 5px; position: relative; transform-style: preserve-3d; transition: transform .5s; cursor: pointer; }
         .card.flip { transform: rotateY(180deg); }
-        .front, .back { width: 100%; height: 100%; position: absolute; border-radius: 8px; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; font-size: 3em; border: 2px solid #00f2ff; }
-        .front { background: #fff; transform: rotateY(180deg); }
-        .back { background: #16213e; color: #e94560; }
-        .back-btn { margin-top: 20px; padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
+        .front, .back { width: 100%; height: 100%; position: absolute; border-radius: 8px; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid var(--primary); box-sizing: border-box; }
+        .front { background: #fff; transform: rotateY(180deg); font-size: 2em; }
+        .back { background: #16213e; color: var(--danger); font-size: 1.5em; font-weight: bold; }
+        .back-btn { margin-top: 30px; padding: 10px 25px; background: var(--danger); color: white; text-decoration: none; border-radius: 50px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>🧠 記憶翻牌</h2>
+    <div class="stats">
+        關卡: <span id="lvl">1</span>/5 | 時間: <span id="timer">0</span>s
+    </div>
     <div class="memory-game" id="game-board"></div>
-    <a href="index.html" class="back-btn">回大廳</a>
+    <a href="index.html" class="back-btn">返回遊戲大廳</a>
+
     <script>
-        const cards = ['🐱','🐱','🐶','🐶','🦊','🦊','🐸','🐸','🦄','🦄','🐲','🐲','🐙','🐙','🦋','🦋'];
-        let hasFlipped = false, lock = false, first, second, matched = 0;
-        function create() {
-            cards.sort(() => Math.random() - 0.5);
+        const emojis = ['🐱','🐶','🦊','🐸','🦄','🐲','🐙','🦋','🦁','🐯','🐼','🐨','🐷','🐸','🐵','🐔','🐧','🐦'];
+        let level = 1;
+        let matched = 0;
+        let hasFlipped = false, lock = false, first, second;
+        let startTime = Date.now();
+        let timerInterval;
+
+        const levels = [
+            { pairs: 6, cols: 4 }, // 12 張
+            { pairs: 8, cols: 4 }, // 16 張
+            { pairs: 10, cols: 5 }, // 20 張
+            { pairs: 12, cols: 6 }, // 24 張
+            { pairs: 18, cols: 6 }  // 36 張
+        ];
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                document.getElementById('timer').innerText = Math.floor((Date.now() - startTime) / 1000);
+            }, 1000);
+        }
+
+        function createBoard() {
+            const config = levels[level-1];
             const board = document.getElementById('game-board');
-            cards.forEach(emoji => {
-                const c = document.createElement('div');
-                c.className = 'card'; c.dataset.icon = emoji;
-                c.innerHTML = `<div class="front">${emoji}</div><div class="back">?</div>`;
-                c.addEventListener('click', flip); board.appendChild(c);
+            board.innerHTML = '';
+            board.style.width = `${config.cols * 90}px`;
+            
+            let gameEmojis = emojis.slice(0, config.pairs);
+            let deck = [...gameEmojis, ...gameEmojis];
+            deck.sort(() => Math.random() - 0.5);
+
+            matched = 0;
+            document.getElementById('lvl').innerText = level;
+
+            deck.forEach(emoji => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.icon = emoji;
+                card.innerHTML = `<div class="front">${emoji}</div><div class="back">?</div>`;
+                card.addEventListener('click', flipCard);
+                board.appendChild(card);
             });
         }
-        function flip() {
+
+        function flipCard() {
             if (lock || this === first) return;
             this.classList.add('flip');
             if (!hasFlipped) { hasFlipped = true; first = this; return; }
-            second = this; check();
+            second = this;
+            checkMatch();
         }
-        function check() {
+
+        function checkMatch() {
             let isMatch = first.dataset.icon === second.dataset.icon;
-            if (isMatch) { matched += 2; reset(); if(matched === 16) alert("完美記憶！"); }
-            else { lock = true; setTimeout(() => { first.classList.remove('flip'); second.classList.remove('flip'); reset(); }, 1000); }
+            if (isMatch) {
+                matched += 2;
+                resetCards();
+                if(matched === levels[level-1].pairs * 2) {
+                    setTimeout(() => {
+                        if(level < 5) {
+                            alert(`第 ${level} 關完成！`);
+                            level++; createBoard();
+                        } else {
+                            alert(`全關卡達成！總耗時: ${document.getElementById('timer').innerText}秒`);
+                            location.reload();
+                        }
+                    }, 500);
+                }
+            } else {
+                lock = true;
+                setTimeout(() => {
+                    first.classList.remove('flip');
+                    second.classList.remove('flip');
+                    resetCards();
+                }, 1000);
+            }
         }
-        function reset() { [hasFlipped, lock] = [false, false]; [first, second] = [null, null]; }
-        create();
+
+        function resetCards() { [hasFlipped, lock] = [false, false]; [first, second] = [null, null]; }
+
+        createBoard();
+        startTimer();
     </script>
 </body>
 </html>
