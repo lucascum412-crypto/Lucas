@@ -2,35 +2,40 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Grand Galaxy Museum</title>
+    <title>Galaxy Arcade Hub</title>
     <style>
-        :root { --bg: #020205; --primary: #00f2ff; --gold: #ffd700; }
-        body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
+        :root { --bg: #020205; --primary: #00f2ff; --accent: #ff0077; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', Arial; }
+        
+        /* 啟動介面 */
         #welcomeOverlay {
-            position: fixed; inset: 0; background: radial-gradient(circle, #0a0a25 0%, #000 100%);
+            position: fixed; inset: 0; background: radial-gradient(circle at center, #0a0a25 0%, #000 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
         }
         .start-btn { 
-            padding: 18px 80px; font-size: 24px; background: transparent; border: 2px solid var(--primary);
-            color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold;
+            padding: 20px 60px; font-size: 24px; background: none; border: 2px solid var(--primary);
+            color: var(--primary); cursor: pointer; border-radius: 8px; transition: 0.3s;
+            font-weight: bold; text-transform: uppercase; letter-spacing: 2px;
         }
-        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 50px var(--primary); }
+        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 40px var(--primary); }
+
+        /* UI 提示 */
         #hintUI {
-            position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
-            padding: 15px 40px; background: rgba(0, 0, 0, 0.95); border: 2px solid var(--primary);
-            color: white; font-size: 20px; display: none; z-index: 10; border-radius: 50px;
-            box-shadow: 0 0 20px var(--primary);
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+            padding: 12px 35px; background: rgba(0, 0, 0, 0.9); border: 1px solid var(--primary);
+            color: white; font-size: 18px; display: none; z-index: 10; border-radius: 30px;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
         }
     </style>
 </head>
 <body>
 
 <div id="welcomeOverlay">
-    <h1 style="color: white; font-size: 50px; letter-spacing: 15px;">GALAXY GALLERY</h1>
-    <button class="start-btn" onclick="initGame()">ENTER HUB</button>
+    <h1 style="color: white; font-size: 48px; letter-spacing: 10px; margin-bottom: 30px;">GALAXY HUB</h1>
+    <button class="start-btn" onclick="initGame()">ENTER SYSTEM</button>
 </div>
 
-<div id="hintUI">READY? PRESS <b style="color:var(--primary)">[SPACE]</b> TO ENTER <span id="gameName"></span></div>
+<div id="hintUI">READY? PRESS <b style="color:var(--primary)">[SPACE]</b> TO START <span id="gameName"></span></div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -39,207 +44,216 @@
     const hintUI = document.getElementById('hintUI');
     const nameLabel = document.getElementById('gameName');
 
-    let player = { x: 0, y: 0, w: 32, h: 42, speed: 5, color: '#fff', alpha: 1 };
+    // 遊戲狀態
+    let player = { x: 0, y: 0, w: 30, h: 42, speed: 5, color: '#00f2ff', alpha: 1 };
     let keys = {};
     let npcs = [];
     let running = false;
 
+    // 門口數據 (對稱設計)
     const gateData = [
-        { name: "ARCADE FIGHTER", file: "game1.html", color: "#00f2ff", side: "left" },
-        { name: "NEON TETRIS", file: "game2.html", color: "#ff0077", side: "left" },
-        { name: "MEMORY CARDS", file: "game5.html", color: "#7000ff", side: "left" },
-        { name: "SKY PILOT", file: "game8.html", color: "#00ff77", side: "left" },
-        { name: "PUZZLE BLOCK", file: "game3.html", color: "#ffd700", side: "right" },
-        { name: "BRICK BREAKER", file: "game4.html", color: "#00f2ff", side: "right" },
-        { name: "RHYTHM MASTER", file: "game6.html", color: "#ff0077", side: "right" },
-        { name: "PLATFORMER", file: "game7.html", side: "right", color: "#7000ff" }
+        { name: "ARCADE FIGHTER", side: "left", color: "#00f2ff", file: "game1.html" },
+        { name: "NEON TETRIS", side: "left", color: "#ff0077", file: "game2.html" },
+        { name: "MEMORY CHALLENGE", side: "left", color: "#7000ff", file: "game3.html" },
+        { name: "SPACE PILOT", side: "left", color: "#39ff14", file: "game4.html" },
+        { name: "BLOCK PUZZLE", side: "right", color: "#ffd700", file: "game5.html" },
+        { name: "BRICK EVOLUTION", side: "right", color: "#00f2ff", file: "game6.html" },
+        { name: "RHYTHM MASTER", side: "right", color: "#ff0077", file: "game7.html" },
+        { name: "PLATFORM RUN", side: "right", color: "#7000ff", file: "game8.html" }
     ];
     let gates = [];
 
-    const decoList = [
-        { type: 'statue', x: 0.5, y: 0.2 }, // 中間大雕塑
-        { type: 'bench', x: 0.5, y: 0.5 },
-        { type: 'lamp', x: 0.4, y: 0.15 }, { type: 'lamp', x: 0.6, y: 0.15 }
-    ];
-
-    function createNPCs() {
-        for (let i = 0; i < 8; i++) {
-            npcs.push({
-                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-                w: 30, h: 40, color: `hsl(${Math.random()*360}, 70%, 60%)`,
-                tx: Math.random()*canvas.width, ty: Math.random()*canvas.height,
-                state: 'move', timer: 0, alpha: 1
-            });
-        }
-    }
-
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        gates = [];
-        const leftX = canvas.width * 0.15;
-        const rightX = canvas.width * 0.85;
-        const verticalSpacing = canvas.height / 5;
-
-        gateData.forEach((g, i) => {
-            const indexInSide = i % 4;
-            const xPos = g.side === "left" ? leftX : rightX - 120;
-            const yPos = (indexInSide + 1) * verticalSpacing - 60;
-            gates.push({ ...g, x: xPos, y: yPos, w: 120, h: 100 });
-        });
-    }
+    // 裝飾物 (中間區域)
+    let decoList = [];
 
     function initGame() {
         document.getElementById('welcomeOverlay').style.display = 'none';
         resize();
-        createNPCs();
+        createEntities();
         player.x = canvas.width / 2;
         player.y = canvas.height / 2;
         running = true;
         loop();
     }
 
+    function createEntities() {
+        npcs = [];
+        for (let i = 0; i < 8; i++) {
+            npcs.push({
+                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                w: 28, h: 38, color: `hsl(${i * 45}, 80%, 60%)`,
+                tx: Math.random() * canvas.width, ty: Math.random() * canvas.height,
+                state: 'move', timer: 0, alpha: 1
+            });
+        }
+        // 放置中間的裝飾物
+        decoList = [
+            { type: 'bench', x: canvas.width * 0.5, y: canvas.height * 0.4 },
+            { type: 'bench', x: canvas.width * 0.5, y: canvas.height * 0.6 },
+            { type: 'lamp', x: canvas.width * 0.45, y: canvas.height * 0.2 },
+            { type: 'lamp', x: canvas.width * 0.55, y: canvas.height * 0.2 }
+        ];
+    }
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gates = [];
+        const leftX = canvas.width * 0.12;
+        const rightX = canvas.width * 0.88 - 110;
+        const vSpace = canvas.height / 5;
+
+        gateData.forEach((g, i) => {
+            const index = i % 4;
+            const y = (index + 1) * vSpace - 50;
+            gates.push({ ...g, x: g.side === 'left' ? leftX : rightX, y, w: 110, h: 90 });
+        });
+    }
+
     window.onkeydown = e => keys[e.code] = true;
     window.onkeyup = e => keys[e.code] = false;
     window.onresize = resize;
 
-    function checkCollision(r1, r2) {
+    function checkRectCollision(r1, r2) {
         return r1.x - r1.w/2 < r2.x + r2.w/2 && r1.x + r1.w/2 > r2.x - r2.w/2 &&
                r1.y - r1.h/2 < r2.y + r2.h/2 && r1.y + r1.h/2 > r2.y - r2.h/2;
     }
 
-    function getObstacles(exclude = null) {
+    function getObstacles(excludeNPC = null) {
         let obs = [];
-        // 裝飾物物理
+        // 裝飾物
         decoList.forEach(d => {
-            const rx = d.x * canvas.width, ry = d.y * canvas.height;
-            if(d.type==='bench') obs.push({x: rx, y: ry, w: 100, h: 30});
-            if(d.type==='statue') obs.push({x: rx, y: ry, w: 60, h: 60});
+            if(d.type==='bench') obs.push({ x: d.x, y: d.y, w: 90, h: 30 });
+            if(d.type==='lamp') obs.push({ x: d.x, y: d.y, w: 10, h: 10 });
         });
-        // 門框物理 (只擋柱子，不擋中間)
+        // 門框 (只擋左右兩根柱子)
         gates.forEach(g => {
-            obs.push({ x: g.x + 5, y: g.y, w: 10, h: 100 }); // 左柱
-            obs.push({ x: g.x + 115, y: g.y, w: 10, h: 100 }); // 右柱
-            obs.push({ x: g.x + 60, y: g.y - 5, w: 120, h: 10 }); // 頂
+            obs.push({ x: g.x + 5, y: g.y + 45, w: 10, h: 90 });
+            obs.push({ x: g.x + 105, y: g.y + 45, w: 10, h: 90 });
         });
-        npcs.forEach(n => { if(n !== exclude && n.alpha > 0.5) obs.push({x:n.x, y:n.y, w:n.w, h:n.h}); });
+        // 其他實體
+        npcs.forEach(n => { if(n !== excludeNPC && n.alpha > 0.5) obs.push({ x: n.x, y: n.y, w: n.w, h: n.h }); });
         return obs;
     }
 
     function update() {
+        // 玩家移動
         let nx = player.x, ny = player.y;
         if (keys['KeyW'] || keys['ArrowUp']) ny -= player.speed;
         if (keys['KeyS'] || keys['ArrowDown']) ny += player.speed;
         if (keys['KeyA'] || keys['ArrowLeft']) nx -= player.speed;
         if (keys['KeyD'] || keys['ArrowRight']) nx += player.speed;
 
-        const obs = getObstacles();
+        const obstacles = getObstacles();
         let canX = true, canY = true;
-        obs.forEach(o => {
-            if (checkCollision({x: nx, y: player.y, w: player.w, h: player.h}, o)) canX = false;
-            if (checkCollision({x: player.x, y: ny, w: player.w, h: player.h}, o)) canY = false;
+        obstacles.forEach(o => {
+            if (checkRectCollision({x: nx, y: player.y, w: player.w, h: player.h}, o)) canX = false;
+            if (checkRectCollision({x: player.x, y: ny, w: player.w, h: player.h}, o)) canY = false;
         });
         if(canX) player.x = nx; if(canY) player.y = ny;
 
-        // 門內消失邏輯
-        let inGate = gates.find(g => player.x > g.x && player.x < g.x+120 && player.y > g.y && player.y < g.y+100);
+        // 隱身判定
+        let inGate = gates.find(g => player.x > g.x && player.x < g.x+110 && player.y > g.y && player.y < g.y+90);
         player.alpha = inGate ? 0 : 1;
 
+        // NPC AI
         npcs.forEach(n => {
             if(n.state === 'move'){
                 let dx = n.tx-n.x, dy = n.ty-n.y, d = Math.hypot(dx, dy);
-                if(d < 5){ n.state='wait'; n.timer=100; }
+                if(d < 5) { n.state = 'wait'; n.timer = 120; }
                 else {
-                    let nX = n.x+(dx/d)*1.2, nY = n.y+(dy/d)*1.2;
-                    let block = false;
-                    [...getObstacles(n), player].forEach(o => { if(checkCollision({x:nX, y:nY, w:n.w, h:n.h}, o)) block = true; });
-                    if(!block){ n.x=nX; n.y=nY; } else { n.state='wait'; n.timer=40; }
+                    let nX = n.x + (dx/d)*1.3, nY = n.y + (dy/d)*1.3;
+                    let blocked = false;
+                    [...getObstacles(n), player].forEach(o => { if(checkRectCollision({x:nX, y:nY, w:n.w, h:n.h}, o)) blocked = true; });
+                    if(!blocked) { n.x=nX; n.y=nY; } else { n.state='wait'; n.timer=40; }
                 }
             } else { n.timer--; if(n.timer<=0){ n.state='move'; n.tx=Math.random()*canvas.width; n.ty=Math.random()*canvas.height; } }
-            n.alpha = gates.some(g => n.x > g.x && n.x < g.x+120 && n.y > g.y && n.y < g.y+100) ? 0 : 1;
+            n.alpha = gates.some(g => n.x > g.x && n.x < g.x+110 && n.y > g.y && n.y < g.y+90) ? 0 : 1;
         });
 
         if(inGate) {
-            hintUI.style.display='block'; nameLabel.innerText=inGate.name;
+            hintUI.style.display = 'block'; nameLabel.innerText = inGate.name;
             if(keys['Space']) window.location.href = inGate.file;
-        } else hintUI.style.display='none';
+        } else hintUI.style.display = 'none';
     }
 
     function drawGate(g) {
         ctx.save();
-        // 1. 地毯/入口台階
-        ctx.fillStyle = g.color + '44';
-        ctx.fillRect(g.x + 10, g.y + 80, 100, 40);
-        
-        // 2. 黑洞內部
-        ctx.fillStyle = '#000';
-        ctx.fillRect(g.x, g.y, 120, 100);
-        
-        // 3. 精緻門框 (雙層霓虹)
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = g.color;
-        ctx.strokeStyle = g.color;
-        ctx.lineWidth = 4;
-        ctx.strokeRect(g.x, g.y, 120, 100);
-        
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(g.x + 4, g.y + 4, 112, 92);
-        
-        // 4. 裝飾燈頭
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(g.x-5, g.y-5, 10, 10);
-        ctx.fillRect(g.x+115, g.y-5, 10, 10);
+        // 1. 門前地毯 (Entrance Rug)
+        ctx.fillStyle = g.color + '33';
+        ctx.fillRect(g.x + 5, g.y + 70, 100, 30);
 
-        // 5. 文字
-        ctx.shadowBlur = 0;
+        // 2. 黑色深淵 (Portal Interior)
+        ctx.fillStyle = '#000';
+        ctx.fillRect(g.x, g.y, 110, 90);
+
+        // 3. 霓虹門框 (Neon Frame)
+        ctx.shadowBlur = 15; ctx.shadowColor = g.color;
+        ctx.strokeStyle = g.color; ctx.lineWidth = 4;
+        ctx.strokeRect(g.x, g.y, 110, 90);
+        
+        // 4. 裝飾燈泡
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px Segoe UI';
-        ctx.textAlign = 'center';
-        // 根據兩側調整文字位置
-        const textX = g.side === 'left' ? g.x + 140 : g.x - 20;
-        ctx.textAlign = g.side === 'left' ? 'left' : 'right';
-        ctx.fillText(g.name, textX, g.y + 55);
+        ctx.fillRect(g.x-4, g.y-4, 8, 8);
+        ctx.fillRect(g.x+106, g.y-4, 8, 8);
+
+        // 5. 文字標籤 (面向中間)
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 13px Segoe UI';
+        if(g.side === 'left') {
+            ctx.textAlign = 'left';
+            ctx.fillText(g.name, g.x + 125, g.y + 50);
+        } else {
+            ctx.textAlign = 'right';
+            ctx.fillText(g.name, g.x - 15, g.y + 50);
+        }
         ctx.restore();
     }
 
     function draw() {
         ctx.clearRect(0,0,canvas.width, canvas.height);
         
-        // 地板格紋
-        ctx.strokeStyle = '#101025';
+        // 背景網格
+        ctx.strokeStyle = '#101025'; ctx.lineWidth = 1;
         for(let i=0; i<canvas.width; i+=60) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
         for(let i=0; i<canvas.height; i+=60) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
 
-        // 裝飾
+        // 繪製裝飾物
         decoList.forEach(d => {
-            const rx = d.x * canvas.width, ry = d.y * canvas.height;
-            if(d.type==='bench'){ ctx.fillStyle='#111'; ctx.fillRect(rx-50, ry-15, 100, 30); ctx.strokeStyle='#333'; ctx.strokeRect(rx-50, ry-15, 100, 30); }
-            if(d.type==='statue'){ ctx.fillStyle='#1a1a3a'; ctx.beginPath(); ctx.moveTo(rx, ry-40); ctx.lineTo(rx+30, ry+20); ctx.lineTo(rx-30, ry+20); ctx.fill(); ctx.strokeStyle=var(--primary); ctx.stroke(); }
+            ctx.fillStyle = '#1a1a3a';
+            if(d.type==='bench') ctx.fillRect(d.x-45, d.y-12, 90, 24);
+            if(d.type==='lamp') { 
+                ctx.fillStyle = '#ffff00'; ctx.shadowBlur = 10; ctx.shadowColor = 'yellow';
+                ctx.beginPath(); ctx.arc(d.x, d.y, 8, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+            }
         });
 
-        // 角色排序繪製
+        // 繪製角色 (依 Y 軸排序)
         [...npcs, player].sort((a,b)=>a.y-b.y).forEach(r => {
             if(r.alpha <= 0) return;
-            ctx.save();
-            ctx.translate(r.x, r.y);
-            // 身體
-            ctx.fillStyle='#111'; ctx.fillRect(-r.w/2, -r.h/2, r.w, r.h);
-            ctx.strokeStyle = r===player ? '#fff' : r.color;
-            ctx.lineWidth=2; ctx.strokeRect(-r.w/2, -r.h/2, r.w, r.h);
-            // 頭部
+            ctx.save(); ctx.translate(r.x, r.y);
+            // 身體與描邊
+            ctx.fillStyle = '#111'; ctx.fillRect(-r.w/2, -r.h/2, r.w, r.h);
+            ctx.strokeStyle = r === player ? '#fff' : r.color;
+            ctx.lineWidth = 2; ctx.strokeRect(-r.w/2, -r.h/2, r.w, r.h);
+            // 頭部與眼睛
             ctx.strokeRect(-12, -r.h/2-18, 24, 18);
-            // 眼睛
-            ctx.fillStyle = r===player ? '#00f2ff' : r.color;
-            ctx.fillRect(-7, -32, 4, 4); ctx.fillRect(3, -32, 4, 4);
+            ctx.fillStyle = r === player ? '#00f2ff' : r.color;
+            ctx.fillRect(-7, -30, 4, 4); ctx.fillRect(3, -30, 4, 4);
             ctx.restore();
         });
 
-        // 門口蓋在最上面
+        // 門口蓋在最上層
         gates.forEach(drawGate);
     }
 
-    function loop() { if(running){ update(); draw(); requestAnimationFrame(loop); } }
+    function loop() {
+        if(running) {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+    }
 </script>
 </body>
 </html>
