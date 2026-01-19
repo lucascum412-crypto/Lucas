@@ -3,90 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>8-BIT 遊戲中心 | 經典 HTML5 遊戲館</title>
-    <link rel="stylesheet" href="style.css">
+    <title>HTML5 超級遊戲館</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="container">
-        <header>
-            <h1>ARCADE HUB</h1>
-            <p class="subtitle">點擊下方卡片進入遊戲，挑戰最高紀錄！</p>
-        </header>
+    <div class="bg-overlay"></div>
 
-        <main class="game-grid">
-            
-            <a href="game1.html" class="game-card">
-                <div class="game-icon">🐍</div>
-                <div class="game-info">
-                    <h3>經典貪吃蛇</h3>
-                    <p>靈活轉向，挑戰最長身軀</p>
+    <header>
+        <div class="header-content">
+            <h1>🎮 HTML5 超級遊戲館 🕹️</h1>
+            <p class="subtitle">READY PLAYER ONE? 選擇你的挑戰！</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="game-grid">
+            <a href="game1.html" class="game-card hot">
+                <span class="badge">🔥 熱門</span>
+                <div class="icon-wrapper">🐍</div>
+                <div class="card-content">
+                    <h3>少林武俠</h3>
+                    <p>經典不敗的貪吃蛇反應遊戲</p>
                 </div>
             </a>
 
-            <a href="game2.html" class="game-card">
-                <div class="game-icon">⭕</div>
-                <div class="game-info">
-                    <h3>井字對抗賽</h3>
-                    <p>經典 3x3，看誰先連成線</p>
+            <a href="game2.html" class="game-card new">
+                <span class="badge">🆕 新品</span>
+                <div class="icon-wrapper">❌⭕</div>
+                <div class="card-content">
+                    <h3>井字遊戲</h3>
+                    <p>雙人對戰智力比拼</p>
                 </div>
             </a>
 
             <a href="game3.html" class="game-card">
-                <div class="game-icon">⚡</div>
-                <div class="game-info">
+                <div class="icon-wrapper">⚡</div>
+                <div class="card-content">
                     <h3>極速點擊</h3>
-                    <p>測試你的手指反應極限</p>
+                    <p>測試你的手速極限 APM</p>
                 </div>
             </a>
 
-            <a href="game4.html" class="game-card">
-                <div class="game-icon">🧱</div>
-                <div class="game-info">
-                    <h3>打磚塊冒險</h3>
-                    <p>反彈小球，擊碎所有障礙</p>
+            <div class="game-card locked">
+                <div class="lock-overlay"><span class="lock-icon">🔒</span></div>
+                <div class="icon-wrapper">🧱</div>
+                <div class="card-content">
+                    <h3>打磚塊</h3>
+                    <p>即將推出</p>
                 </div>
-            </a>
+            </div>
 
-            <a href="game5.html" class="game-card">
-                <div class="game-icon">🧠</div>
-                <div class="game-info">
-                    <h3>記憶翻牌</h3>
-                    <p>翻開卡片，找出配對圖案</p>
-                </div>
-            </a>
+            <div class="game-card locked">
+                <div class="lock-overlay"><span class="lock-icon">🔒</span></div>
+                <div class="icon-wrapper">🃏</div>
+                <div class="card-content"><h3>記憶翻牌</h3></div>
+            </div>
 
-            <a href="game6.html" class="game-card">
-                <div class="game-icon">🔢</div>
-                <div class="game-info">
-                    <h3>神祕猜數字</h3>
-                    <p>根據提示猜出電腦心中數</p>
-                </div>
-            </a>
+            <div class="game-card locked">
+                <div class="lock-overlay"><span class="lock-icon">🔒</span></div>
+                <div class="icon-wrapper">🔢</div>
+                <div class="card-content"><h3>猜數字</h3></div>
+            </div>
+            
+            <div class="game-card locked">
+                <div class="lock-overlay"><span class="lock-icon">🔒</span></div>
+                <div class="icon-wrapper">🚀</div>
+                <div class="card-content"><h3>太空射擊</h3></div>
+            </div>
+        </div>
+    </main>
 
-            <a href="game7.html" class="game-card">
-                <div class="game-icon">🖐️</div>
-                <div class="game-info">
-                    <h3>猜拳大賽</h3>
-                    <p>與 AI 進行運氣與心理對決</p>
-                </div>
-            </a>
-
-            <a href="game8.html" class="game-card">
-                <div class="game-icon">🚀</div>
-                <div class="game-info">
-                    <h3>方塊飛行員</h3>
-                    <p>穿越通道，挑戰飛行距離</p>
-                </div>
-            </a>
-
-        </main>
-
-        <footer>
-            <p>&copy; 2026 我的 HTML5 遊戲館專案</p>
-        </footer>
-    </div>
+    <footer>
+        <p>© 2024 HTML5 超級遊戲館 | Press Start to Play</p>
+    </footer>
 
 </body>
 </html>

@@ -1,77 +1,81 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
     <title>記憶翻牌 - 遊戲館</title>
     <style>
         body { background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: Arial; }
-        .memory-game { width: 440px; height: 440px; display: flex; flex-wrap: wrap; perspective: 1000px; }
-        .card { width: 100px; height: 100px; position: relative; margin: 5px; transform: scale(1); transform-style: preserve-3d; transition: transform .5s; cursor: pointer; }
-        .card.flip { transform: rotateY(180deg); }
-        .front-face, .back-face { width: 100%; height: 100%; position: absolute; border-radius: 5px; background: #16213e; border: 2px solid #0f3460; display: flex; align-items: center; justify-content: center; backface-visibility: hidden; }
-        .front-face { transform: rotateY(180deg); background: #fff; color: #333; font-size: 3em; }
-        .back-face { color: #e94560; font-size: 2em; }
+        .grid { display: grid; grid-template-columns: repeat(4, 80px); gap: 10px; }
+        .card { width: 80px; height: 80px; background-color: #0f3460; display: flex; align-items: center; justify-content: center; font-size: 2em; cursor: pointer; border-radius: 5px; user-select: none; }
+        .flipped { background-color: #fff; color: #000; }
+        .matched { background-color: #e94560; border-color: #e94560; }
         .back-btn { margin-top: 20px; padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <h2>🧠 記憶翻牌挑戰</h2>
-    <div class="memory-game" id="grid"></div>
+    <h2>🧠 記憶翻牌</h2>
+    <p>找出所有相同的配對！</p>
+    <div class="grid" id="grid"></div>
+    <br>
     <a href="index.html" class="back-btn">回大廳</a>
+
     <script>
-        const cardsArray = ['🐱', '🐱', '🐶', '🐶', '🦊', '🦊', '🐸', '🐸', '🦄', '🦄', '🐲', '🐲', '🐙', '🐙', '🦋', '🦋'];
+        const symbols = ['🍎', '🍎', '🍌', '🍌', '🍇', '🍇', '🍉', '🍉', '🍒', '🍒', '🍍', '🍍', '🥝', '🥝', '🥑', '🥑'];
+        let cardsChosen = [];
+        let cardsChosenId = [];
+        let cardsWon = [];
+
+        // 洗牌
+        symbols.sort(() => 0.5 - Math.random());
+
         const grid = document.getElementById('grid');
-        let hasFlippedCard = false;
-        let lockBoard = false;
-        let firstCard, secondCard;
-        let matchedCount = 0;
 
         function createBoard() {
-            cardsArray.sort(() => 0.5 - Math.random());
-            cardsArray.forEach(text => {
+            for (let i = 0; i < symbols.length; i++) {
                 const card = document.createElement('div');
+                card.setAttribute('data-id', i);
                 card.classList.add('card');
-                card.dataset.framework = text;
-                card.innerHTML = `<div class="front-face">${text}</div><div class="back-face">❓</div>`;
-                grid.appendChild(card);
+                card.innerText = '❓';
                 card.addEventListener('click', flipCard);
-            });
-        }
-
-        function flipCard() {
-            if (lockBoard || this === firstCard) return;
-            this.classList.add('flip');
-            if (!hasFlippedCard) {
-                hasFlippedCard = true;
-                firstCard = this;
-                return;
+                grid.appendChild(card);
             }
-            secondCard = this;
-            checkForMatch();
         }
 
         function checkForMatch() {
-            let isMatch = firstCard.dataset.framework === secondCard.dataset.framework;
-            if (isMatch) {
-                firstCard.removeEventListener('click', flipCard);
-                secondCard.removeEventListener('click', flipCard);
-                matchedCount += 2;
-                resetBoard();
-                if(matchedCount === cardsArray.length) setTimeout(() => alert("恭喜獲勝！"), 500);
+            const cards = document.querySelectorAll('.card');
+            const optionOneId = cardsChosenId[0];
+            const optionTwoId = cardsChosenId[1];
+
+            if (cardsChosen[0] === cardsChosen[1] && optionOneId !== optionTwoId) {
+                cards[optionOneId].classList.add('matched');
+                cards[optionTwoId].classList.add('matched');
+                cardsWon.push(cardsChosen);
             } else {
-                lockBoard = true;
-                setTimeout(() => {
-                    firstCard.classList.remove('flip');
-                    secondCard.classList.remove('flip');
-                    resetBoard();
-                }, 1000);
+                cards[optionOneId].innerText = '❓';
+                cards[optionOneId].classList.remove('flipped');
+                cards[optionTwoId].innerText = '❓';
+                cards[optionTwoId].classList.remove('flipped');
+            }
+            cardsChosen = [];
+            cardsChosenId = [];
+
+            if (cardsWon.length === symbols.length / 2) {
+                setTimeout(() => alert('恭喜！你完成了所有配對！'), 500);
             }
         }
 
-        function resetBoard() {
-            [hasFlippedCard, lockBoard] = [false, false];
-            [firstCard, secondCard] = [null, null];
+        function flipCard() {
+            let cardId = this.getAttribute('data-id');
+            if (!this.classList.contains('flipped') && !this.classList.contains('matched') && cardsChosen.length < 2) {
+                cardsChosen.push(symbols[cardId]);
+                cardsChosenId.push(cardId);
+                this.classList.add('flipped');
+                this.innerText = symbols[cardId];
+                if (cardsChosen.length === 2) {
+                    setTimeout(checkForMatch, 500);
+                }
+            }
         }
+
         createBoard();
     </script>
 </body>
