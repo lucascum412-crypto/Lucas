@@ -2,12 +2,10 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Central Avenue - Immersive Layering</title>
+    <title>Central Avenue - Fix Version</title>
     <style>
         :root { --bg: #020205; --primary: #00f2ff; }
         body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
-        
-        /* 歡迎/返回大廳的 UI */
         #welcomeOverlay {
             position: fixed; inset: 0; background: radial-gradient(circle, #0a0a25 0%, #000 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
@@ -16,23 +14,23 @@
             padding: 18px 70px; font-size: 24px; background: transparent; border: 3px solid var(--primary);
             color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold;
         }
-        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 50px var(--primary); }
-
         #hintUI {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            padding: 12px 40px; background: rgba(0, 0, 0, 0.95); border: 2px solid var(--primary);
-            color: white; font-size: 18px; display: none; z-index: 20; border-radius: 50px; text-align: center;
+            padding: 15px 45px; background: rgba(0, 0, 0, 0.95); border: 2px solid var(--primary);
+            color: white; font-size: 20px; display: none; z-index: 2000; border-radius: 50px;
+            box-shadow: 0 0 20px var(--primary); animation: pulse 1s infinite;
         }
+        @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; transform: translateX(-50%) scale(1.05); } 100% { opacity: 0.8; } }
     </style>
 </head>
 <body>
 
 <div id="welcomeOverlay">
-    <h1 style="color: white; font-size: 50px; letter-spacing: 15px; text-shadow: 0 0 20px var(--primary);">CENTRAL AVENUE</h1>
+    <h1 style="color: white; font-size: 50px; letter-spacing: 15px;">CENTRAL AVENUE</h1>
     <button class="start-btn" onclick="initGame()">進入展區</button>
 </div>
 
-<div id="hintUI">按「空白鍵」進入：<span id="gameName" style="color:var(--primary)"></span></div>
+<div id="hintUI">READY? PRESS <b style="color:var(--primary)">[SPACE]</b> TO ENTER <span id="gameName"></span></div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -46,11 +44,16 @@
     let npcs = [];
     let running = false;
 
+    // 關鍵修正：確保每個門都有對應的 file
     const gateData = [
-        { name: "ARCADE 1", row: "top", color: "#00f2ff" }, { name: "ARCADE 2", row: "top", color: "#ff0077" },
-        { name: "ARCADE 3", row: "top", color: "#7000ff" }, { name: "ARCADE 4", row: "top", color: "#39ff14" },
-        { name: "ARCADE 5", row: "bottom", color: "#ffd700" }, { name: "ARCADE 6", row: "bottom", color: "#00f2ff" },
-        { name: "ARCADE 7", row: "bottom", color: "#ff0077" }, { name: "ARCADE 8", row: "bottom", color: "#7000ff" }
+        { name: "ARCADE 1", row: "top", color: "#00f2ff", file: "game1.html" },
+        { name: "ARCADE 2", row: "top", color: "#ff0077", file: "game2.html" },
+        { name: "ARCADE 3", row: "top", color: "#7000ff", file: "game3.html" },
+        { name: "ARCADE 4", row: "top", color: "#39ff14", file: "game4.html" },
+        { name: "ARCADE 5", row: "bottom", color: "#ffd700", file: "game5.html" },
+        { name: "ARCADE 6", row: "bottom", color: "#00f2ff", file: "game6.html" },
+        { name: "ARCADE 7", row: "bottom", color: "#ff0077", file: "game7.html" },
+        { name: "ARCADE 8", row: "bottom", color: "#7000ff", file: "game8.html" }
     ];
     let gates = [];
 
@@ -78,30 +81,32 @@
         document.getElementById('welcomeOverlay').style.display = 'none';
         resize();
         if(npcs.length === 0) {
-            for(let i=0; i<8; i++) npcs.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, w:28, h:38, color:`hsl(${i*40},70%,50%)`, tx:Math.random()*canvas.width, ty:Math.random()*canvas.height, state:'move', timer:0, alpha:1 });
+            for(let i=0; i<8; i++) npcs.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, w:28, h:38, color:`hsl(${i*40},70%,50%)`, tx:Math.random()*canvas.width, ty:Math.random()*canvas.height, alpha:1 });
         }
         player.x = canvas.width/2; player.y = canvas.height/2;
-        running = true; loop();
+        running = true;
+        // 確保點擊按鈕後 Canvas 獲得焦點
+        canvas.focus();
+        loop();
     }
 
-    window.onkeydown = e => keys[e.code] = true;
-    window.onkeyup = e => keys[e.code] = false;
+    // 監聽鍵盤 (使用 code 比較精確)
+    window.addEventListener('keydown', e => { keys[e.code] = true; });
+    window.addEventListener('keyup', e => { keys[e.code] = false; });
 
     function checkCollision(r1, r2) {
         return r1.x - r1.w/2 < r2.x + r2.w/2 && r1.x + r1.w/2 > r2.x - r2.w/2 &&
                r1.y - r1.h/2 < r2.y + r2.h/2 && r1.y + r1.h/2 > r2.y - r2.h/2;
     }
 
-    function getObstacles(exclude = null) {
+    function getObstacles() {
         let obs = [];
-        deco.trees.forEach(t => obs.push({ x: t.x*canvas.width, y: t.y*canvas.height+40, w: 25, h: 25 }));
-        deco.benches.forEach(b => obs.push({ x: b.x*canvas.width, y: b.y*canvas.height, w: 80, h: 25 }));
-        deco.lamps.forEach(l => obs.push({ x: l.x*canvas.width, y: l.y*canvas.height+40, w: 10, h: 10 }));
+        deco.trees.forEach(t => obs.push({ x: t.x*canvas.width, y: t.y*canvas.height+45, w: 30, h: 30 }));
+        deco.benches.forEach(b => obs.push({ x: b.x*canvas.width, y: b.y*canvas.height, w: 85, h: 25 }));
         gates.forEach(g => {
-            obs.push({ x: g.x+10, y: g.y+70, w: 20, h: 140 }); // 左粗柱
-            obs.push({ x: g.x+120, y: g.y+70, w: 20, h: 140 }); // 右粗柱
+            obs.push({ x: g.x+10, y: g.y+70, w: 20, h: 140 }); // 左柱
+            obs.push({ x: g.x+120, y: g.y+70, w: 20, h: 140 }); // 右柱
         });
-        npcs.forEach(n => { if(n !== exclude && n.alpha > 0) obs.push({x:n.x, y:n.y, w:n.w, h:n.h}); });
         return obs;
     }
 
@@ -120,49 +125,56 @@
         });
         if(canX) player.x = nx; if(canY) player.y = ny;
 
-        let curG = gates.find(g => player.x > g.x && player.x < g.x+130 && player.y > g.y && player.y < g.y+140);
+        // 判定是否在門內 (範圍稍微放大一點，方便觸發)
+        let curG = gates.find(g => 
+            player.x > g.x && player.x < g.x+130 && 
+            player.y > g.y && player.y < g.y+140
+        );
+        
         player.alpha = curG ? 0 : 1;
 
+        if(curG){
+            hintUI.style.display = 'block';
+            nameLabel.innerText = curG.name;
+            // 執行跳轉
+            if(keys['Space']) {
+                console.log("正在進入: " + curG.file);
+                // 為了測試，如果沒有檔案就噴 alert
+                window.location.href = curG.file;
+                // 如果跳轉失敗（例如沒檔案），可以加個備案：
+                setTimeout(() => { alert("已觸發進入 " + curG.name + "！\n請確保資料夾中有 " + curG.file); }, 100);
+            }
+        } else {
+            hintUI.style.display = 'none';
+        }
+
+        // NPC 簡單移動
         npcs.forEach(n => {
             let dx = n.tx-n.x, dy = n.ty-n.y, d = Math.hypot(dx,dy);
-            if(d<5){ n.tx=Math.random()*canvas.width; n.ty=Math.random()*canvas.height; }
-            else {
-                let mX = n.x+(dx/d)*1.5, mY = n.y+(dy/d)*1.5;
-                let b = false; [...getObstacles(n), player].forEach(o => { if(checkCollision({x:mX,y:mY,w:n.w,h:n.h},o)) b=true; });
-                if(!b){ n.x=mX; n.y=mY; }
-            }
+            if(d<10){ n.tx=Math.random()*canvas.width; n.ty=Math.random()*canvas.height; }
+            else { n.x += (dx/d)*1.5; n.y += (dy/d)*1.5; }
             n.alpha = gates.some(g => n.x > g.x && n.x < g.x+130 && n.y > g.y && n.y < g.y+140) ? 0 : 1;
         });
-
-        if(curG){ hintUI.style.display='block'; nameLabel.innerText=curG.name; }
-        else hintUI.style.display='none';
     }
 
     function draw() {
         ctx.fillStyle='#050508'; ctx.fillRect(0,0,canvas.width,canvas.height);
         
-        // --- 1. 底層渲染 (Floor, Interior, Trunk) ---
+        // 1. 底層
         ctx.strokeStyle='#101025';
         for(let i=0;i<canvas.width;i+=80){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,canvas.height);ctx.stroke();}
         for(let i=0;i<canvas.height;i+=80){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(canvas.width,i);ctx.stroke();}
 
         gates.forEach(g => {
-            ctx.fillStyle='#000'; ctx.fillRect(g.x, g.y, g.w, g.h); // 黑色內部
-            // 標題文字依舊放在大門對向
+            ctx.fillStyle='#000'; ctx.fillRect(g.x, g.y, g.w, g.h);
             ctx.fillStyle='#fff'; ctx.font='bold 14px Arial'; ctx.textAlign='center';
-            const ty = g.row==='top' ? g.y+170 : g.y-20;
+            const ty = g.row==='top' ? g.y+175 : g.y-25;
             ctx.fillText(g.name, g.x+g.w/2, ty);
         });
 
-        deco.trees.forEach(t => { // 樹幹
-            ctx.fillStyle='#1a1a2e'; ctx.fillRect(t.x*canvas.width-12, t.y*canvas.height+40, 24, 40);
-        });
-        deco.benches.forEach(b => { // 長椅
-            ctx.fillStyle='#111'; ctx.fillRect(b.x*canvas.width-40, b.y*canvas.height-10, 80, 20);
-            ctx.strokeStyle='#333'; ctx.strokeRect(b.x*canvas.width-40, b.y*canvas.height-10, 80, 20);
-        });
+        deco.trees.forEach(t => { ctx.fillStyle='#1a1a2e'; ctx.fillRect(t.x*canvas.width-12, t.y*canvas.height+40, 24, 40); });
 
-        // --- 2. 中層渲染 (Entities) ---
+        // 2. 角色
         [...npcs, player].sort((a,b)=>a.y-b.y).forEach(r => {
             if(r.alpha<=0) return;
             ctx.save(); ctx.translate(r.x,r.y);
@@ -171,32 +183,29 @@
             ctx.restore();
         });
 
-        // --- 3. 頂層渲染 (Leaves, Lamps, Thick Gate Frames) ---
-        deco.trees.forEach(t => { // 樹葉遮蓋
+        // 3. 頂層遮掩 (樹葉、燈、粗門框)
+        deco.trees.forEach(t => {
             const x=t.x*canvas.width, y=t.y*canvas.height;
-            ctx.fillStyle='rgba(10, 42, 10, 0.95)'; ctx.shadowBlur=25; ctx.shadowColor='#39ff14';
+            ctx.fillStyle='rgba(10, 42, 10, 0.9)'; ctx.shadowBlur=20; ctx.shadowColor='#39ff14';
             ctx.beginPath(); ctx.arc(x,y,65,0,Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x,y-45,50,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+            ctx.beginPath(); ctx.arc(x,y-40,50,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
         });
 
-        deco.lamps.forEach(l => { // 街燈發光球
+        deco.lamps.forEach(l => {
             const lx=l.x*canvas.width, ly=l.y*canvas.height;
             ctx.fillStyle='#222'; ctx.fillRect(lx-4, ly, 8, 80);
-            ctx.fillStyle='#ffffaa'; ctx.shadowBlur=40; ctx.shadowColor='yellow';
+            ctx.fillStyle='#ffffaa'; ctx.shadowBlur=30; ctx.shadowColor='yellow';
             ctx.beginPath(); ctx.arc(lx,ly,15,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
         });
 
-        gates.forEach(g => { // 粗門框與紋理遮蓋
-            ctx.save();
+        gates.forEach(g => {
             ctx.shadowBlur=20; ctx.shadowColor=g.color; ctx.strokeStyle=g.color; ctx.lineWidth=12;
             ctx.strokeRect(g.x, g.y, g.w, g.h);
-            // 門柱紋理
             ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.4)';
             for(let j=15; j<g.h; j+=25) {
                 ctx.beginPath(); ctx.moveTo(g.x, g.y+j); ctx.lineTo(g.x+20, g.y+j); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(g.x+110, g.y+j); ctx.lineTo(g.x+130, g.y+j); ctx.stroke();
             }
-            ctx.restore();
         });
     }
 
