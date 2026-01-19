@@ -2,10 +2,12 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Grand Avenue - High Detail Edition</title>
+    <title>Grand Avenue - Immersive Hub</title>
     <style>
         :root { --bg: #020205; --primary: #00f2ff; }
         body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
+        
+        /* 歡迎介面 */
         #welcomeOverlay {
             position: fixed; inset: 0; background: radial-gradient(circle, #0a0a25 0%, #000 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
@@ -15,6 +17,7 @@
             color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold;
         }
         .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 50px var(--primary); }
+
         #hintUI {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             padding: 15px 45px; background: rgba(0, 0, 0, 0.9); border: 1px solid var(--primary);
@@ -38,7 +41,7 @@
     const hintUI = document.getElementById('hintUI');
     const nameLabel = document.getElementById('gameName');
 
-    let player = { x: 0, y: 0, w: 24, h: 48, speed: 4, color: '#00f2ff', anim: 0, moving: false, dir: 1 };
+    let player = { x: 0, y: 0, w: 24, h: 48, speed: 4.5, color: '#00f2ff', anim: 0, dir: 1 };
     let keys = {};
     let npcs = [];
     let running = false;
@@ -79,145 +82,121 @@
     function initGame() {
         document.getElementById('welcomeOverlay').style.display = 'none';
         resize();
-        for(let i=0; i<6; i++) {
-            npcs.push({ 
-                x: Math.random()*canvas.width, y: Math.random()*canvas.height, 
-                w:24, h:48, color:`hsl(${Math.random()*360},70%,60%)`, 
-                tx:Math.random()*canvas.width, ty:Math.random()*canvas.height,
-                anim: Math.random()*Math.PI, dir: 1
-            });
+        if(npcs.length === 0) {
+            for(let i=0; i<7; i++) {
+                npcs.push({ 
+                    x: Math.random()*canvas.width, y: Math.random()*canvas.height, 
+                    w:24, h:48, color:`hsl(${Math.random()*360},70%,60%)`, 
+                    tx:Math.random()*canvas.width, ty:Math.random()*canvas.height,
+                    anim: Math.random()*10, dir: 1, speed: 1 + Math.random()
+                });
+            }
         }
         player.x = canvas.width/2; player.y = canvas.height/2;
         running = true; loop();
     }
 
+    // --- 自動進入邏輯 ---
+    window.onload = () => {
+        // 如果網址後面有 #back，直接開始遊戲
+        if(window.location.hash === "#back") {
+            initGame();
+        }
+    };
+
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
 
-    // 繪製細緻角色函數
-    function drawCharacter(char, isPlayer) {
-        const { x, y, w, h, color, anim, dir } = char;
-        const walkCycle = Math.sin(frameCount * 0.15 + anim);
+    function drawCharacter(char) {
+        const { x, y, color, anim, dir } = char;
+        const isMoving = char === player ? (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight']) : true;
+        const walkCycle = isMoving ? Math.sin(frameCount * 0.15 + anim) : 0;
         
         ctx.save();
         ctx.translate(x, y);
-        if (dir === -1) ctx.scale(-1, 1); // 轉向
+        if (dir === -1) ctx.scale(-1, 1);
 
-        // 1. 腿部動畫
+        // 雙腿
         ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
-        // 左腿
-        ctx.beginPath(); ctx.moveTo(-5, 5); ctx.lineTo(-8 + walkCycle*5, 18); ctx.stroke();
-        // 右腿
-        ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(8 - walkCycle*5, 18); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-5, 5); ctx.lineTo(-8 + walkCycle*6, 20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(8 - walkCycle*6, 20); ctx.stroke();
 
-        // 2. 身體 (風衣/制服感)
-        ctx.fillStyle = "#111";
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(-10, -15, 20, 25, 5);
-        ctx.fill(); ctx.stroke();
+        // 身體
+        ctx.fillStyle = "#111"; ctx.strokeStyle = color; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(-10, -15, 20, 26, 4); ctx.fill(); ctx.stroke();
 
-        // 3. 手部
-        ctx.strokeStyle = "#ccc";
-        ctx.beginPath(); ctx.moveTo(-11, -10); ctx.lineTo(-15 - walkCycle*3, 2); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(11, -10); ctx.lineTo(15 + walkCycle*3, 2); ctx.stroke();
+        // 雙手
+        ctx.strokeStyle = "#aaa"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-11, -8); ctx.lineTo(-15 - walkCycle*4, 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(11, -8); ctx.lineTo(15 + walkCycle*4, 5); ctx.stroke();
 
-        // 4. 頭部與臉部細節
-        ctx.fillStyle = "#111";
-        ctx.beginPath(); ctx.arc(0, -28, 12, 0, Math.PI*2); ctx.fill();
-        ctx.stroke();
-        
-        // 眼睛 (發光)
-        ctx.shadowBlur = 5; ctx.shadowColor = color;
-        ctx.fillStyle = color;
-        ctx.fillRect(2, -31, 5, 2);
-        ctx.fillRect(-7, -31, 5, 2);
-        
+        // 頭部與眼睛
+        ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(0, -28, 12, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 8; ctx.shadowColor = color; ctx.fillStyle = color;
+        ctx.fillRect(2, -31, 5, 2); ctx.fillRect(-7, -31, 5, 2);
         ctx.restore();
     }
 
     function update() {
         frameCount++;
-        player.moving = false;
         let nx = player.x, ny = player.y;
-        
-        if(keys['ArrowUp'] || keys['KeyW']) { ny -= player.speed; player.moving = true; }
-        if(keys['ArrowDown'] || keys['KeyS']) { ny += player.speed; player.moving = true; }
-        if(keys['ArrowLeft'] || keys['KeyA']) { nx -= player.speed; player.moving = true; player.dir = -1; }
-        if(keys['ArrowRight'] || keys['KeyD']) { nx += player.speed; player.moving = true; player.dir = 1; }
+        if(keys['ArrowUp'] || keys['KeyW']) ny -= player.speed;
+        if(keys['ArrowDown'] || keys['KeyS']) ny += player.speed;
+        if(keys['ArrowLeft'] || keys['KeyA']) { nx -= player.speed; player.dir = -1; }
+        if(keys['ArrowRight'] || keys['KeyD']) { nx += player.speed; player.dir = 1; }
 
-        // 簡易邊界檢查
         if(nx > 0 && nx < canvas.width) player.x = nx;
         if(ny > 0 && ny < canvas.height) player.y = ny;
 
-        // 傳送判定
         let curG = gates.find(g => player.x > g.x && player.x < g.x+130 && player.y > g.y && player.y < g.y+140);
         if(curG) {
             hintUI.style.display = 'block';
             nameLabel.innerText = curG.name;
             if(keys['Space']) window.location.href = curG.file;
-        } else {
-            hintUI.style.display = 'none';
-        }
+        } else { hintUI.style.display = 'none'; }
 
-        // NPC 移動
         npcs.forEach(n => {
             let dx = n.tx - n.x, dy = n.ty - n.y, dist = Math.hypot(dx, dy);
             if(dist < 10) {
                 n.tx = Math.random()*canvas.width; n.ty = Math.random()*canvas.height;
             } else {
-                n.x += (dx/dist)*1.2; n.y += (dy/dist)*1.2;
+                n.x += (dx/dist)*n.speed; n.y += (dy/dist)*n.speed;
                 n.dir = dx > 0 ? 1 : -1;
             }
         });
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#050508'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 背景網格
         ctx.strokeStyle = '#101025';
         for(let i=0; i<canvas.width; i+=80) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
         for(let i=0; i<canvas.height; i+=80) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
 
-        // 繪製門內黑洞
         gates.forEach(g => {
             ctx.fillStyle = '#000'; ctx.fillRect(g.x, g.y, g.w, g.h);
             ctx.fillStyle = '#fff'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
-            ctx.fillText(g.name, g.x + 65, g.row==='top'?g.y+160:g.y-20);
+            ctx.fillText(g.name, g.x + 65, g.row==='top'?g.y+165:g.y-20);
         });
 
-        // 繪製樹幹、長椅
         deco.trees.forEach(t => { ctx.fillStyle='#1a1a2e'; ctx.fillRect(t.x*canvas.width-10, t.y*canvas.height+40, 20, 40); });
         deco.benches.forEach(b => { ctx.fillStyle='#111'; ctx.fillRect(b.x*canvas.width-40, b.y*canvas.height-5, 80, 15); });
 
-        // 繪製角色 (依 Y 軸排序)
         let entities = [...npcs, player].sort((a, b) => a.y - b.y);
         entities.forEach(ent => {
-            // 檢查是否在門內
             let inGate = gates.some(g => ent.x > g.x && ent.x < g.x+130 && ent.y > g.y && ent.y < g.y+140);
-            if(!inGate) drawCharacter(ent, ent === player);
+            if(!inGate) drawCharacter(ent);
         });
 
-        // 頂層遮掩：樹葉與門框
         deco.trees.forEach(t => {
             const x=t.x*canvas.width, y=t.y*canvas.height;
-            ctx.fillStyle='rgba(10, 40, 10, 0.9)'; ctx.shadowBlur=15; ctx.shadowColor='#39ff14';
-            ctx.beginPath(); ctx.arc(x, y, 60, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x, y-40, 45, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+            ctx.fillStyle='rgba(10, 40, 10, 0.9)'; ctx.shadowBlur=20; ctx.shadowColor='#39ff14';
+            ctx.beginPath(); ctx.arc(x, y, 65, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x, y-40, 50, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
         });
 
         gates.forEach(g => {
             ctx.strokeStyle = g.color; ctx.lineWidth = 10; ctx.shadowBlur = 15; ctx.shadowColor = g.color;
             ctx.strokeRect(g.x, g.y, 130, 140); ctx.shadowBlur = 0;
-            // 裝飾紋理
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2;
-            for(let j=10; j<140; j+=30) {
-                ctx.beginPath(); ctx.moveTo(g.x, g.y+j); ctx.lineTo(g.x+15, g.y+j); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(g.x+115, g.y+j); ctx.lineTo(g.x+130, g.y+j); ctx.stroke();
-            }
         });
     }
 
