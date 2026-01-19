@@ -2,142 +2,224 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>遊戲博物館 - RPG 探索模式</title>
-    <style>
-        :root { --primary: #00f2ff; --bg: #050510; }
-        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        
+    <title>Neon Arcade 遊戲博物館</title>
+    <link rel="stylesheet" href="style.css"> <style>
+        /* 由於尚未有完整的 style.css，先將必要樣式放在這裡 */
+        :root {
+            --bg-dark: #050510;
+            --card-bg: #1a1a2e;
+            --neon-blue: #00f2ff;
+            --neon-pink: #e94560;
+            --neon-purple: #7000ff;
+            --text-white: #e0e0e0;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-white);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden; /* 防止滾動條 */
+        }
+
         /* 歡迎頁面 */
         #welcomeOverlay {
             position: fixed; inset: 0; background: radial-gradient(circle, #1a1a2e 0%, #050510 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
         }
-        .museum-title { font-size: 60px; color: var(--primary); text-shadow: 0 0 20px var(--primary); margin-bottom: 40px; }
+        .museum-title { font-size: 60px; color: var(--neon-blue); text-shadow: 0 0 20px var(--neon-blue); margin-bottom: 40px; }
         .start-btn { 
-            padding: 20px 60px; font-size: 24px; background: transparent; border: 2px solid var(--primary);
-            color: var(--primary); cursor: pointer; border-radius: 50px; transition: 0.3s;
+            padding: 20px 60px; font-size: 24px; background: transparent; border: 2px solid var(--neon-blue);
+            color: var(--neon-blue); cursor: pointer; border-radius: 50px; transition: 0.3s;
         }
-        .start-btn:hover { background: var(--primary); color: black; box-shadow: 0 0 30px var(--primary); }
+        .start-btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 30px var(--neon-blue); }
 
         /* 畫布 */
-        #world { display: block; background: #0a0a1a; }
+        #museumCanvas { display: block; background: linear-gradient(to bottom, #0a0a1a, #00000a); /* 深色背景漸變 */ }
         
         /* 遊戲提示 UI */
-        #hint {
+        #gameHint {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 242, 255, 0.2); padding: 10px 30px; border-radius: 20px;
-            border: 1px solid var(--primary); pointer-events: none; display: none;
+            background: rgba(0, 242, 255, 0.15); padding: 12px 30px; border-radius: 25px;
+            border: 1px solid var(--neon-blue); pointer-events: none; display: none;
+            font-size: 1.1rem; color: var(--neon-blue); text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+            animation: pulse-hint 1.5s infinite alternate; /* 提示文字脈動效果 */
+        }
+        @keyframes pulse-hint {
+            from { opacity: 0.8; transform: translateX(-50%) scale(1); }
+            to { opacity: 1; transform: translateX(-50%) scale(1.02); }
         }
     </style>
 </head>
 <body>
 
 <div id="welcomeOverlay">
-    <h1 class="museum-title">歡迎來到遊戲博物館</h1>
+    <h1 class="museum-title">歡迎來到 Neon Arcade</h1>
     <button class="start-btn" onclick="enterMuseum()">開始探索</button>
 </div>
 
-<div id="hint">走入傳送陣以開始遊戲：<span id="gameName"></span></div>
-<canvas id="world"></canvas>
+<div id="gameHint">走入光門進入：<span id="gameName"></span></div>
+<canvas id="museumCanvas"></canvas>
 
 <script>
-    const canvas = document.getElementById('world');
+    const canvas = document.getElementById('museumCanvas');
     const ctx = canvas.getContext('2d');
-    const hint = document.getElementById('hint');
+    const gameHint = document.getElementById('gameHint');
     const gameNameDisplay = document.getElementById('gameName');
 
-    // 遊戲博物館配置
-    let player = { x: 450, y: 400, size: 20, speed: 4 };
+    // 博物館地圖配置
+    let player = { x: 450, y: 500, size: 25, speed: 4, color: 'white' }; // 玩家大小與顏色
     let keys = {};
-    let running = false;
+    let gameRunning = false; // 控制遊戲循環
 
-    // 定義展區（遊戲入口）
-    const exhibitions = [
-        { name: "ARCADE FIGHTER", x: 150, y: 150, color: "#e94560", url: "game1.html" },
-        { name: "打磚塊進化版", x: 450, y: 150, color: "#00f2ff", url: "game4.html" },
-        { name: "霓虹飛行員", x: 750, y: 150, color: "#7000ff", url: "game8.html" }
+    // 定義 8 個遊戲的入口 (門口)
+    const gameEntrances = [
+        // 左側展區 (4 個)
+        { id: 1, name: "ARCADE FIGHTER", x: 150, y: 150, doorColor: "#e94560", url: "game1.html" },
+        { id: 2, name: "彈幕射擊 (未開發)", x: 150, y: 300, doorColor: "#00d2ff", url: "game2.html" },
+        { id: 3, name: "方塊拼圖 (未開發)", x: 150, y: 450, doorColor: "#ff9900", url: "game3.html" },
+        { id: 4, name: "打磚塊進化版", x: 150, y: 600, doorColor: "#00f2ff", url: "game4.html" },
+        
+        // 右側展區 (4 個)
+        { id: 5, name: "記憶翻牌 (未開發)", x: 750, y: 150, doorColor: "#8b00ff", url: "game5.html" },
+        { id: 6, name: "節奏大師 (未開發)", x: 750, y: 300, doorColor: "#ff0077", url: "game6.html" },
+        { id: 7, name: "平台跳躍 (未開發)", x: 750, y: 450, doorColor: "#33ff00", url: "game7.html" },
+        { id: 8, name: "霓虹飛行員", x: 750, y: 600, doorColor: "#7000ff", url: "game8.html" },
     ];
 
     function enterMuseum() {
         document.getElementById('welcomeOverlay').style.display = 'none';
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        running = true;
+        gameRunning = true;
         loop();
     }
 
-    window.addEventListener('keydown', e => keys[e.key] = true);
-    window.addEventListener('keyup', e => keys[e.key] = false);
+    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
     function update() {
-        if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
-        if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
-        if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
-        if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+        // 玩家移動
+        if (keys['arrowup'] || keys['w']) player.y -= player.speed;
+        if (keys['arrowdown'] || keys['s']) player.y += player.speed;
+        if (keys['arrowleft'] || keys['a']) player.x -= player.speed;
+        if (keys['arrowright'] || keys['d']) player.x += player.speed;
 
-        // 碰撞檢查
-        let nearExhibition = false;
-        exhibitions.forEach(ex => {
-            const dist = Math.hypot(player.x - ex.x, player.y - ex.y);
-            if (dist < 40) { // 進入範圍
-                window.location.href = ex.url; // 自動跳轉
-            }
-            if (dist < 100) {
-                nearExhibition = true;
-                hint.style.display = 'block';
-                gameNameDisplay.innerText = ex.name;
+        // 邊界限制
+        player.x = Math.max(player.size / 2, Math.min(canvas.width - player.size / 2, player.x));
+        player.y = Math.max(player.size / 2, Math.min(canvas.height - player.size / 2, player.y));
+
+        let nearAnyEntrance = false;
+        gameEntrances.forEach(entrance => {
+            const dist = Math.hypot(player.x - entrance.x, player.y - entrance.y);
+            if (dist < player.size + 15) { // 進入門口範圍
+                if (entrance.url.includes("未開發")) {
+                    gameNameDisplay.innerText = entrance.name; // 顯示未開發提示
+                    gameHint.style.display = 'block';
+                } else {
+                    window.location.href = entrance.url; // 跳轉到遊戲
+                }
+            } else if (dist < player.size + 80) { // 靠近門口顯示提示
+                gameNameDisplay.innerText = entrance.name;
+                gameHint.style.display = 'block';
+                nearAnyEntrance = true;
             }
         });
-        if (!nearExhibition) hint.style.display = 'none';
+
+        if (!nearAnyEntrance) gameHint.style.display = 'none';
     }
 
     function draw() {
-        ctx.fillStyle = '#050510';
+        // 背景漸變與網格
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#050510'; // 確保背景色
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 繪製裝飾網格
-        ctx.strokeStyle = '#1a1a2e';
-        for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
-        for(let i=0; i<canvas.height; i+=50) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
+        // 繪製背景發光網格
+        ctx.strokeStyle = 'rgba(0, 242, 255, 0.05)';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < canvas.width; i += 50) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+        for (let i = 0; i < canvas.height; i += 50) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
+        
+        // 繪製牆壁 (示意)
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, 100, canvas.height); // 左牆
+        ctx.fillRect(canvas.width - 100, 0, 100, canvas.height); // 右牆
+        ctx.fillRect(0, 0, canvas.width, 100); // 天花板
+        ctx.fillRect(0, canvas.height - 100, canvas.width, 100); // 地板
+        ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(100, 100, canvas.width - 200, canvas.height - 200); // 中間區域邊框
 
-        // 繪製展區傳送陣
-        exhibitions.forEach(ex => {
-            // 光環效果
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = ex.color;
-            ctx.strokeStyle = ex.color;
-            ctx.lineWidth = 3;
+        // 繪製遊戲入口 (光門)
+        gameEntrances.forEach(entrance => {
+            // 光門主體
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = entrance.doorColor;
+            ctx.fillStyle = entrance.doorColor;
             ctx.beginPath();
-            ctx.arc(ex.x, ex.y, 40, 0, Math.PI*2);
-            ctx.stroke();
-            
-            // 文字
-            ctx.fillStyle = ex.color;
-            ctx.font = "16px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(ex.name, ex.x, ex.y - 60);
-        });
-        ctx.shadowBlur = 0;
+            ctx.ellipse(entrance.x, entrance.y, 40, 60, 0, 0, Math.PI * 2); // 橢圓形光門
+            ctx.fill();
 
-        // 繪製玩家 (像 Pokemon 的小人)
-        ctx.fillStyle = "white";
+            // 光門名稱
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = entrance.doorColor;
+            ctx.font = "bold 18px 'Segoe UI'";
+            ctx.textAlign = "center";
+            ctx.fillText(entrance.name, entrance.x, entrance.y - 80);
+        });
+
+        // 繪製玩家 (更精緻的小人)
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = varColor(0); // 玩家霓虹光暈
+        ctx.fillStyle = player.color;
+        
+        // 身體
         ctx.beginPath();
-        ctx.arc(player.x, player.y, player.size/2, 0, Math.PI*2);
+        ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2); // 身體
         ctx.fill();
-        // 玩家光暈
+        
+        // 頭部
+        ctx.beginPath();
+        ctx.arc(player.x, player.y - player.size - 5, player.size * 0.7, 0, Math.PI * 2); // 頭
+        ctx.fill();
+
+        ctx.shadowBlur = 0; // 重置陰影
+
+        // 玩家霓虹外框
         ctx.strokeStyle = varColor(0);
         ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(player.x, player.y - player.size - 5, player.size * 0.7, 0, Math.PI * 2);
         ctx.stroke();
     }
 
     function loop() {
-        if (!running) return;
+        if (!gameRunning) return;
         update();
         draw();
         requestAnimationFrame(loop);
     }
 
-    function varColor(i) { return "#00f2ff"; }
+    // 通用顏色函數，可以從 style.css 中獲取
+    function varColor(i) { return getComputedStyle(document.documentElement).getPropertyValue('--neon-blue'); }
+
+    // 視窗大小改變時，重新調整 Canvas
+    window.addEventListener('resize', () => {
+        if (gameRunning) {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+    });
 </script>
 </body>
 </html>
