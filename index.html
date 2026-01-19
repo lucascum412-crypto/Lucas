@@ -1,94 +1,258 @@
-// --- 新增：碰撞檢測工具函數 ---
-function isColliding(rect1, rect2) {
-    return rect1.x - rect1.w/2 < rect2.x + rect2.w/2 &&
-           rect1.x + rect1.w/2 > rect2.x - rect2.w/2 &&
-           rect1.y - rect1.h/2 < rect2.y + rect2.h/2 &&
-           rect1.y + rect1.h/2 > rect2.y - rect2.h/2;
-}
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Museum - Physical World</title>
+    <style>
+        :root {
+            --bg: #030308;
+            --primary: #00f2ff;
+        }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
+        
+        #welcomeOverlay {
+            position: fixed; inset: 0; background: radial-gradient(circle, #0a0a20 0%, #000 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .start-btn { 
+            padding: 18px 80px; font-size: 24px; background: transparent; border: 2px solid var(--primary);
+            color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold;
+        }
+        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 50px var(--primary); }
 
-// 獲取場景中所有實體障礙物
-function getObstacles() {
-    let obs = [];
-    // 門口（作為障礙物）
-    gates.forEach(g => obs.push({ x: g.x + 50, y: g.y + 65, w: 100, h: 130 }));
-    // 裝飾物
-    decoList.forEach(d => {
-        const rx = d.x * canvas.width, ry = d.y * canvas.height;
-        if(d.type === 'bench') obs.push({ x: rx + 50, y: ry + 17, w: 110, h: 40 });
-        if(d.type === 'tree') obs.push({ x: rx, y: ry, w: 40, h: 40 });
-        if(d.type === 'lamp') obs.push({ x: rx + 3, y: ry + 45, w: 15, h: 90 });
-    });
-    // 其他 NPC (對玩家而言)
-    npcs.forEach(n => obs.push({ x: n.x, y: n.y, w: n.w, h: n.h }));
-    return obs;
-}
+        #hintUI {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            padding: 15px 40px; background: rgba(0, 0, 0, 0.9); border: 2px solid var(--primary);
+            color: white; font-size: 22px; display: none; z-index: 10; border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
 
-function update() {
-    let nextX = player.x;
-    let nextY = player.y;
+<div id="welcomeOverlay">
+    <h1 style="color: white; font-size: 50px; letter-spacing: 10px; margin-bottom: 40px;">GALAXY MUSEUM</h1>
+    <button class="start-btn" onclick="initGame()">進入探索</button>
+</div>
 
-    // 1. 預算玩家位置
-    if (keys['ArrowUp'] || keys['w']) nextY -= player.speed;
-    if (keys['ArrowDown'] || keys['s']) nextY += player.speed;
-    if (keys['ArrowLeft'] || keys['a']) nextX -= player.speed;
-    if (keys['ArrowRight'] || keys['d']) nextX += player.speed;
+<div id="hintUI">按「空白鍵」進入：<span id="gameName" style="color: var(--primary);"></span></div>
+<canvas id="gameCanvas"></canvas>
 
-    // 2. 邊界檢查
-    nextX = Math.max(20, Math.min(canvas.width - 20, nextX));
-    nextY = Math.max(20, Math.min(canvas.height - 20, nextY));
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const hintUI = document.getElementById('hintUI');
+    const nameLabel = document.getElementById('gameName');
 
-    // 3. 碰撞檢查 (玩家 vs 障礙物)
-    let canMoveX = true;
-    let canMoveY = true;
-    
-    const obstacles = getObstacles();
-    const tempPlayerX = { ...player, x: nextX, y: player.y };
-    const tempPlayerY = { ...player, x: player.x, y: nextY };
+    // 1. 基礎配置
+    let player = { x: 0, y: 0, w: 36, h: 46, speed: 4.5, color: '#00f2ff' };
+    let keys = {};
+    let running = false;
+    let npcs = [];
+    const npcColors = ['#ff55ff', '#ffcc00', '#39ff14', '#ff4d00', '#7000ff', '#e94560', '#00ff77', '#ffffff'];
 
-    obstacles.forEach(ob => {
-        if (isColliding(tempPlayerX, ob)) canMoveX = false;
-        if (isColliding(tempPlayerY, ob)) canMoveY = false;
-    });
+    // 裝飾物位置 (相對螢幕比例)
+    const decoList = [
+        { type: 'bench', x: 0.2, y: 0.45 }, { type: 'bench', x: 0.8, y: 0.45 },
+        { type: 'lamp', x: 0.05, y: 0.15 }, { type: 'lamp', x: 0.95, y: 0.15 },
+        { type: 'lamp', x: 0.05, y: 0.85 }, { type: 'lamp', x: 0.95, y: 0.85 },
+        { type: 'tree', x: 0.4, y: 0.4 }, { type: 'tree', x: 0.6, y: 0.4 }
+    ];
 
-    if (canMoveX) player.x = nextX;
-    if (canMoveY) player.y = nextY;
+    const gateData = [
+        { name: "ARCADE FIGHTER", file: "game1.html", color: "#00f2ff" },
+        { name: "NEON TETRIS", file: "game2.html", color: "#ff0077" },
+        { name: "方塊拼圖", file: "game3.html", color: "#7000ff" },
+        { name: "打磚塊進化", file: "game4.html", color: "#00f2ff" },
+        { name: "記憶翻牌", file: "game5.html", color: "#7000ff" },
+        { name: "節奏大師", file: "game6.html", color: "#00f2ff" },
+        { name: "平台跳躍", file: "game7.html", color: "#ff0077" },
+        { name: "霓虹飛行員", file: "game8.html", color: "#7000ff" }
+    ];
+    let gates = [];
 
-    // 4. NPC AI 與碰撞
-    npcs.forEach(n => {
-        if (n.state === 'wait') {
-            n.timer--;
-            if (n.timer <= 0) {
-                n.state = 'move';
-                n.tx = Math.random() * (canvas.width - 60) + 30;
-                n.ty = Math.random() * (canvas.height - 60) + 30;
-            }
-        } else {
-            let dx = n.tx - n.x, dy = n.ty - n.y, dist = Math.hypot(dx, dy);
-            if (dist < 2) { 
-                n.state = 'wait'; n.timer = Math.random() * 300 + 100; 
+    // 2. 初始化 NPC
+    function createNPCs() {
+        npcs = [];
+        for (let i = 0; i < 8; i++) {
+            npcs.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                w: 32, h: 42, color: npcColors[i],
+                tx: Math.random() * window.innerWidth,
+                ty: Math.random() * window.innerHeight,
+                state: 'wait', timer: Math.random() * 200
+            });
+        }
+    }
+
+    function initGame() {
+        document.getElementById('welcomeOverlay').style.display = 'none';
+        resize();
+        createNPCs();
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+        running = true;
+        loop();
+    }
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gates = [];
+        const margin = canvas.width * 0.12;
+        const spacing = (canvas.width - (margin * 2)) / 3;
+        gateData.forEach((g, i) => {
+            const row = Math.floor(i / 4);
+            const col = i % 4;
+            gates.push({ ...g, x: margin + col * spacing - 50, y: row === 0 ? 100 : canvas.height - 230, w: 100, h: 130 });
+        });
+    }
+
+    window.onresize = resize;
+    window.onkeydown = e => keys[e.key.toLowerCase()] = true;
+    window.onkeyup = e => keys[e.key.toLowerCase()] = false;
+
+    // 3. 碰撞檢測核心邏輯 (AABB)
+    function checkRectCollision(r1, r2) {
+        return r1.x - r1.w/2 < r2.x + r2.w/2 &&
+               r1.x + r1.w/2 > r2.x - r2.w/2 &&
+               r1.y - r1.h/2 < r2.y + r2.h/2 &&
+               r1.y + r1.h/2 > r2.y - r2.h/2;
+    }
+
+    function getObstacles(excludeNPC = null) {
+        let obs = [];
+        // 裝飾物碰撞箱
+        decoList.forEach(d => {
+            const rx = d.x * canvas.width, ry = d.y * canvas.height;
+            if(d.type === 'bench') obs.push({ x: rx + 50, y: ry + 15, w: 110, h: 40 });
+            if(d.type === 'tree') obs.push({ x: rx, y: ry, w: 40, h: 40 });
+            if(d.type === 'lamp') obs.push({ x: rx + 3, y: ry + 40, w: 15, h: 80 });
+        });
+        // 門口碰撞箱
+        gates.forEach(g => obs.push({ x: g.x + 50, y: g.y + 65, w: 100, h: 130 }));
+        // 其他 NPC
+        npcs.forEach(n => { if(n !== excludeNPC) obs.push({ x: n.x, y: n.y, w: n.w, h: n.h }); });
+        return obs;
+    }
+
+    function update() {
+        // --- 玩家移動與碰撞 ---
+        let nextX = player.x;
+        let nextY = player.y;
+        if (keys['arrowup'] || keys['w']) nextY -= player.speed;
+        if (keys['arrowdown'] || keys['s']) nextY += player.speed;
+        if (keys['arrowleft'] || keys['a']) nextX -= player.speed;
+        if (keys['arrowright'] || keys['d']) nextX += player.speed;
+
+        nextX = Math.max(20, Math.min(canvas.width - 20, nextX));
+        nextY = Math.max(20, Math.min(canvas.height - 20, nextY));
+
+        const obstacles = getObstacles();
+        let canMoveX = true;
+        let canMoveY = true;
+
+        obstacles.forEach(o => {
+            if (checkRectCollision({x: nextX, y: player.y, w: player.w, h: player.h}, o)) canMoveX = false;
+            if (checkRectCollision({x: player.x, y: nextY, w: player.w, h: player.h}, o)) canMoveY = false;
+        });
+        if (canMoveX) player.x = nextX;
+        if (canMoveY) player.y = nextY;
+
+        // --- NPC 移動與碰撞 ---
+        npcs.forEach(n => {
+            if (n.state === 'wait') {
+                n.timer--;
+                if (n.timer <= 0) {
+                    n.state = 'move';
+                    n.tx = Math.random() * (canvas.width - 100) + 50;
+                    n.ty = Math.random() * (canvas.height - 100) + 50;
+                }
             } else {
-                let nNextX = n.x + (dx/dist) * 1.2;
-                let nNextY = n.y + (dy/dist) * 1.2;
-                
-                // NPC 簡單碰撞檢查 (不穿過玩家與其他障礙物)
-                let blocked = false;
-                const otherEntities = [player, ...npcs.filter(other => other !== n), ...getObstacles().filter(o => o.x !== n.x)];
-                
-                otherEntities.forEach(ent => {
-                    if (isColliding({x: nNextX, y: nNextY, w: n.w, h: n.h}, ent)) blocked = true;
-                });
-
-                if (!blocked) {
-                    n.x = nNextX;
-                    n.y = nNextY;
-                } else {
-                    n.state = 'wait'; // 撞到東西就停下來思考
-                    n.timer = 50;
+                let dx = n.tx - n.x, dy = n.ty - n.y, dist = Math.hypot(dx, dy);
+                if (dist < 2) { n.state = 'wait'; n.timer = Math.random() * 200 + 100; }
+                else {
+                    let nNextX = n.x + (dx/dist) * 1.2;
+                    let nNextY = n.y + (dy/dist) * 1.2;
+                    let nBlocked = false;
+                    const nObs = [...getObstacles(n), {x: player.x, y: player.y, w: player.w, h: player.h}];
+                    nObs.forEach(o => { if(checkRectCollision({x: nNextX, y: nNextY, w: n.w, h: n.h}, o)) nBlocked = true; });
+                    if (!nBlocked) { n.x = nNextX; n.y = nNextY; }
+                    else { n.state = 'wait'; n.timer = 60; }
                 }
             }
-        }
-    });
+        });
 
-    // 傳送檢查 (維持原樣)
-    // ...
-}
+        // --- 門口提示 ---
+        let current = null;
+        gates.forEach(g => { if (Math.abs(player.x - (g.x+50)) < 65 && Math.abs(player.y - (g.y+65)) < 80) current = g; });
+        if(current) {
+            hintUI.style.display = 'block';
+            nameLabel.innerText = current.name;
+            if(keys[' ']) window.location.href = current.file;
+        } else hintUI.style.display = 'none';
+    }
+
+    // 4. 繪製函數
+    function draw() {
+        ctx.fillStyle = '#050508'; ctx.fillRect(0,0,canvas.width, canvas.height);
+        
+        // 網格地板
+        ctx.strokeStyle = '#101025'; ctx.lineWidth = 1;
+        for(let i=0; i<canvas.width; i+=80) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+        for(let i=0; i<canvas.height; i+=80) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+
+        // 繪製門口
+        gates.forEach(g => {
+            ctx.fillStyle = '#000'; ctx.fillRect(g.x, g.y, g.w, g.h);
+            ctx.strokeStyle = g.color; ctx.lineWidth = 4; ctx.strokeRect(g.x, g.y, g.w, g.h);
+            ctx.fillStyle = g.color + '15'; ctx.fillRect(g.x+5, g.y+5, g.w-10, g.h-10);
+            ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.font = 'bold 15px Arial';
+            ctx.fillText(g.name, g.x+50, g.y - 15);
+        });
+
+        // 繪製裝飾
+        decoList.forEach(d => {
+            const rx = d.x * canvas.width, ry = d.y * canvas.height;
+            if(d.type === 'bench') {
+                ctx.fillStyle = '#1a1a2e'; ctx.fillRect(rx, ry, 100, 35);
+                ctx.strokeStyle = '#444'; ctx.strokeRect(rx, ry, 100, 35);
+                ctx.fillStyle = '#0a0a1a'; ctx.fillRect(rx-5, ry-5, 5, 45); ctx.fillRect(rx+100, ry-5, 5, 45);
+            }
+            if(d.type === 'lamp') {
+                ctx.fillStyle = '#222'; ctx.fillRect(rx, ry, 6, 90);
+                ctx.shadowBlur = 20; ctx.shadowColor = 'yellow';
+                ctx.fillStyle = '#ffffaa'; ctx.beginPath(); ctx.arc(rx+3, ry, 10, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+            if(d.type === 'tree') {
+                ctx.fillStyle = '#0a220a'; ctx.beginPath(); ctx.arc(rx, ry, 22, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(rx, ry-15, 15, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#39ff14'; ctx.beginPath(); ctx.arc(rx, ry-15, 2, 0, Math.PI*2); ctx.fill();
+            }
+        });
+
+        // 繪製角色
+        const allBots = [...npcs, player];
+        allBots.sort((a,b) => a.y - b.y).forEach(r => {
+            ctx.save();
+            ctx.translate(r.x, r.y);
+            ctx.fillStyle = '#0a0a0a'; ctx.fillRect(-r.w/2, -r.h/2, r.w, r.h);
+            ctx.strokeStyle = r === player ? '#00f2ff' : r.color;
+            ctx.lineWidth = 3; ctx.strokeRect(-r.w/2, -r.h/2, r.w, r.h);
+            ctx.fillRect(-14, -r.h/2-20, 28, 20); ctx.strokeRect(-14, -r.h/2-20, 28, 20);
+            ctx.fillStyle = r === player ? '#00f2ff' : r.color;
+            ctx.fillRect(-8, -35, 5, 5); ctx.fillRect(3, -35, 5, 5);
+            ctx.restore();
+        });
+    }
+
+    function loop() {
+        if (!running) return;
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
