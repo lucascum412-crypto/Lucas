@@ -16,7 +16,7 @@
     <input type="number" id="numInp" placeholder="數字">
     <button onclick="guess()">猜！</button>
     <div id="msg">來試試手氣吧！</div>
-    <br><a href="index.html" class="back-btn">回大廳</a>
+    <button onclick="window.location.href='index.html#back'">返回大廳</button>
     <script>
         let target = Math.floor(Math.random() * 100) + 1;
         let count = 0;
