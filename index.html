@@ -1,229 +1,94 @@
-<!DOCTYPE html>
-<html lang="zh-HK">
-<head>
-    <meta charset="UTF-8">
-    <title>Neon Museum - Social Hub</title>
-    <style>
-        :root {
-            --bg: #030308;
-            --primary: #00f2ff;
-        }
-        body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
-        #welcomeOverlay {
-            position: fixed; inset: 0; background: radial-gradient(circle, #0a0a20 0%, #000 100%);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
-        }
-        .start-btn { 
-            padding: 18px 80px; font-size: 24px; background: transparent; border: 2px solid var(--primary);
-            color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold;
-        }
-        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 50px var(--primary); }
-        #hintUI {
-            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
-            padding: 15px 40px; background: rgba(0, 0, 0, 0.9); border: 2px solid var(--primary);
-            color: white; font-size: 22px; display: none; z-index: 10; border-radius: 8px;
-        }
-    </style>
-</head>
-<body>
+// --- 新增：碰撞檢測工具函數 ---
+function isColliding(rect1, rect2) {
+    return rect1.x - rect1.w/2 < rect2.x + rect2.w/2 &&
+           rect1.x + rect1.w/2 > rect2.x - rect2.w/2 &&
+           rect1.y - rect1.h/2 < rect2.y + rect2.h/2 &&
+           rect1.y + rect1.h/2 > rect2.y - rect2.h/2;
+}
 
-<div id="welcomeOverlay">
-    <h1 style="color: white; font-size: 50px; letter-spacing: 10px; margin-bottom: 40px;">GALAXY ARCADE</h1>
-    <button class="start-btn" onclick="initGame()">進入展廳</button>
-</div>
+// 獲取場景中所有實體障礙物
+function getObstacles() {
+    let obs = [];
+    // 門口（作為障礙物）
+    gates.forEach(g => obs.push({ x: g.x + 50, y: g.y + 65, w: 100, h: 130 }));
+    // 裝飾物
+    decoList.forEach(d => {
+        const rx = d.x * canvas.width, ry = d.y * canvas.height;
+        if(d.type === 'bench') obs.push({ x: rx + 50, y: ry + 17, w: 110, h: 40 });
+        if(d.type === 'tree') obs.push({ x: rx, y: ry, w: 40, h: 40 });
+        if(d.type === 'lamp') obs.push({ x: rx + 3, y: ry + 45, w: 15, h: 90 });
+    });
+    // 其他 NPC (對玩家而言)
+    npcs.forEach(n => obs.push({ x: n.x, y: n.y, w: n.w, h: n.h }));
+    return obs;
+}
 
-<div id="hintUI">按「空白鍵」進入：<span id="gameName" style="color: var(--primary);"></span></div>
-<canvas id="gameCanvas"></canvas>
+function update() {
+    let nextX = player.x;
+    let nextY = player.y;
 
-<script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const hintUI = document.getElementById('hintUI');
-    const nameLabel = document.getElementById('gameName');
+    // 1. 預算玩家位置
+    if (keys['ArrowUp'] || keys['w']) nextY -= player.speed;
+    if (keys['ArrowDown'] || keys['s']) nextY += player.speed;
+    if (keys['ArrowLeft'] || keys['a']) nextX -= player.speed;
+    if (keys['ArrowRight'] || keys['d']) nextX += player.speed;
 
-    let player = { x: 0, y: 0, w: 40, h: 50, speed: 5 };
-    let keys = {};
-    let running = false;
-    let npcs = [];
+    // 2. 邊界檢查
+    nextX = Math.max(20, Math.min(canvas.width - 20, nextX));
+    nextY = Math.max(20, Math.min(canvas.height - 20, nextY));
 
-    // NPC 顏色池
-    const npcColors = ['#ff55ff', '#ffcc00', '#39ff14', '#ff4d00', '#7000ff', '#e94560', '#00ff77', '#ffffff'];
+    // 3. 碰撞檢查 (玩家 vs 障礙物)
+    let canMoveX = true;
+    let canMoveY = true;
+    
+    const obstacles = getObstacles();
+    const tempPlayerX = { ...player, x: nextX, y: player.y };
+    const tempPlayerY = { ...player, x: player.x, y: nextY };
 
-    // 初始化 8 個 NPC
-    function createNPCs() {
-        npcs = [];
-        for (let i = 0; i < 8; i++) {
-            npcs.push({
-                x: Math.random() * window.innerWidth,
-                y: Math.random() * window.innerHeight,
-                w: 35, h: 45,
-                color: npcColors[i],
-                tx: Math.random() * window.innerWidth,
-                ty: Math.random() * window.innerHeight,
-                state: 'wait',
-                timer: Math.random() * 200
-            });
-        }
-    }
+    obstacles.forEach(ob => {
+        if (isColliding(tempPlayerX, ob)) canMoveX = false;
+        if (isColliding(tempPlayerY, ob)) canMoveY = false;
+    });
 
-    const decoList = [
-        { type: 'bench', x: 0.2, y: 0.45 }, { type: 'bench', x: 0.8, y: 0.45 },
-        { type: 'lamp', x: 0.05, y: 0.2 }, { type: 'lamp', x: 0.95, y: 0.2 },
-        { type: 'lamp', x: 0.05, y: 0.8 }, { type: 'lamp', x: 0.95, y: 0.8 },
-        { type: 'tree', x: 0.4, y: 0.42 }, { type: 'tree', x: 0.6, y: 0.42 }
-    ];
+    if (canMoveX) player.x = nextX;
+    if (canMoveY) player.y = nextY;
 
-    const gateData = [
-        { name: "ARCADE FIGHTER", file: "game1.html", color: "#00f2ff" },
-        { name: "NEON TETRIS", file: "game2.html", color: "#ff0077" },
-        { name: "方塊拼圖", file: "game3.html", color: "#7000ff" },
-        { name: "打磚塊進化", file: "game4.html", color: "#00f2ff" },
-        { name: "記憶翻牌", file: "game5.html", color: "#7000ff" },
-        { name: "節奏大師", file: "game6.html", color: "#00f2ff" },
-        { name: "平台跳躍", file: "game7.html", color: "#ff0077" },
-        { name: "霓虹飛行員", file: "game8.html", color: "#7000ff" }
-    ];
-
-    let gates = [];
-
-    function initGame() {
-        document.getElementById('welcomeOverlay').style.display = 'none';
-        resize();
-        createNPCs();
-        player.x = canvas.width / 2;
-        player.y = canvas.height / 2;
-        running = true;
-        loop();
-    }
-
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        gates = [];
-        const margin = canvas.width * 0.12;
-        const spacing = (canvas.width - (margin * 2)) / 3;
-        
-        gateData.forEach((g, i) => {
-            const row = Math.floor(i / 4);
-            const col = i % 4;
-            gates.push({
-                ...g,
-                x: margin + col * spacing - 50,
-                y: row === 0 ? 100 : canvas.height - 230
-            });
-        });
-    }
-
-    window.onresize = resize;
-    window.onkeydown = e => keys[e.key] = true;
-    window.onkeyup = e => keys[e.key] = false;
-
-    // --- 繪製組件 ---
-    function drawBench(x, y) {
-        ctx.fillStyle = '#1a1a2e'; ctx.fillRect(x, y, 100, 35);
-        ctx.strokeStyle = '#444'; ctx.strokeRect(x, y, 100, 35);
-        ctx.fillStyle = '#0a0a1a'; ctx.fillRect(x-5, y-5, 5, 45); ctx.fillRect(x+100, y-5, 5, 45); // 靠背柱
-    }
-
-    function drawTree(x, y) {
-        ctx.fillStyle = '#0a220a'; 
-        ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x, y-15, 15, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#39ff14'; ctx.beginPath(); ctx.arc(x, y-15, 2, 0, Math.PI*2); ctx.fill();
-    }
-
-    function drawLamp(x, y) {
-        ctx.fillStyle = '#333'; ctx.fillRect(x, y, 6, 90);
-        ctx.shadowBlur = 25; ctx.shadowColor = 'rgba(255,255,100,0.4)';
-        ctx.fillStyle = '#fffFAA'; ctx.beginPath(); ctx.arc(x+3, y, 10, 0, Math.PI*2); ctx.fill();
-        ctx.shadowBlur = 0;
-    }
-
-    function drawRobot(r, isPlayer) {
-        ctx.save();
-        ctx.translate(r.x, r.y);
-        ctx.fillStyle = '#0a0a0a'; ctx.fillRect(-r.w/2, -r.h/2, r.w, r.h);
-        ctx.strokeStyle = isPlayer ? '#00f2ff' : r.color;
-        ctx.lineWidth = 3; ctx.strokeRect(-r.w/2, -r.h/2, r.w, r.h);
-        // 頭部
-        ctx.fillRect(-14, -r.h/2-20, 28, 20); ctx.strokeRect(-14, -r.h/2-20, 28, 20);
-        // 發光眼
-        ctx.fillStyle = isPlayer ? '#00f2ff' : r.color;
-        ctx.fillRect(-8, -35, 5, 5); ctx.fillRect(3, -35, 5, 5);
-        ctx.restore();
-    }
-
-    function update() {
-        if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
-        if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
-        if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
-        if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
-
-        // 限制玩家不出界
-        player.x = Math.max(20, Math.min(canvas.width-20, player.x));
-        player.y = Math.max(20, Math.min(canvas.height-20, player.y));
-
-        // NPC 邏輯
-        npcs.forEach(n => {
-            if (n.state === 'wait') {
-                n.timer--;
-                if (n.timer <= 0) {
-                    n.state = 'move';
-                    n.tx = Math.random() * (canvas.width - 60) + 30;
-                    n.ty = Math.random() * (canvas.height - 60) + 30;
-                }
-            } else {
-                let dx = n.tx - n.x, dy = n.ty - n.y, dist = Math.hypot(dx, dy);
-                if (dist < 2) { n.state = 'wait'; n.timer = Math.random() * 300 + 100; }
-                else { n.x += (dx/dist) * 1.2; n.y += (dy/dist) * 1.2; }
+    // 4. NPC AI 與碰撞
+    npcs.forEach(n => {
+        if (n.state === 'wait') {
+            n.timer--;
+            if (n.timer <= 0) {
+                n.state = 'move';
+                n.tx = Math.random() * (canvas.width - 60) + 30;
+                n.ty = Math.random() * (canvas.height - 60) + 30;
             }
-        });
+        } else {
+            let dx = n.tx - n.x, dy = n.ty - n.y, dist = Math.hypot(dx, dy);
+            if (dist < 2) { 
+                n.state = 'wait'; n.timer = Math.random() * 300 + 100; 
+            } else {
+                let nNextX = n.x + (dx/dist) * 1.2;
+                let nNextY = n.y + (dy/dist) * 1.2;
+                
+                // NPC 簡單碰撞檢查 (不穿過玩家與其他障礙物)
+                let blocked = false;
+                const otherEntities = [player, ...npcs.filter(other => other !== n), ...getObstacles().filter(o => o.x !== n.x)];
+                
+                otherEntities.forEach(ent => {
+                    if (isColliding({x: nNextX, y: nNextY, w: n.w, h: n.h}, ent)) blocked = true;
+                });
 
-        // 傳送檢查
-        let current = null;
-        gates.forEach(g => {
-            if (Math.abs(player.x - (g.x+50)) < 60 && Math.abs(player.y - (g.y+65)) < 70) current = g;
-        });
-        if(current) {
-            hintUI.style.display = 'block';
-            nameLabel.innerText = current.name;
-            if(keys[' ']) window.location.href = current.file;
-        } else hintUI.style.display = 'none';
-    }
+                if (!blocked) {
+                    n.x = nNextX;
+                    n.y = nNextY;
+                } else {
+                    n.state = 'wait'; // 撞到東西就停下來思考
+                    n.timer = 50;
+                }
+            }
+        }
+    });
 
-    function loop() {
-        if (!running) return;
-        update();
-        ctx.fillStyle = '#050508'; ctx.fillRect(0,0,canvas.width, canvas.height);
-        
-        // 網格
-        ctx.strokeStyle = '#101025';
-        for(let i=0; i<canvas.width; i+=80) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
-        for(let i=0; i<canvas.height; i+=80) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
-
-        // 繪製門口
-        gates.forEach(g => {
-            ctx.fillStyle = '#000'; ctx.fillRect(g.x, g.y, 100, 130);
-            ctx.strokeStyle = g.color; ctx.lineWidth = 4; ctx.strokeRect(g.x, g.y, 100, 130);
-            ctx.fillStyle = g.color + '15'; ctx.fillRect(g.x+5, g.y+5, 90, 120);
-            ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.font = 'bold 16px Arial';
-            ctx.fillText(g.name, g.x+50, g.y - 15);
-        });
-
-        // 繪製裝飾物
-        decoList.forEach(d => {
-            const rx = d.x * canvas.width, ry = d.y * canvas.height;
-            if(d.type === 'bench') drawBench(rx, ry);
-            if(d.type === 'lamp') drawLamp(rx, ry);
-            if(d.type === 'tree') drawTree(rx, ry);
-        });
-
-        // 繪製角色
-        npcs.forEach(n => drawRobot(n, false));
-        drawRobot(player, true);
-
-        requestAnimationFrame(loop);
-    }
-</script>
-</body>
-</html>
+    // 傳送檢查 (維持原樣)
+    // ...
+}
