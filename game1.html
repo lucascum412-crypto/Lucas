@@ -2,142 +2,355 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>遊戲博物館 - RPG 探索模式</title>
+    <title>LF2 終極格鬥 - 霓虹進化版</title>
     <style>
-        :root { --primary: #00f2ff; --bg: #050510; }
-        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        
-        /* 歡迎頁面 */
-        #welcomeOverlay {
-            position: fixed; inset: 0; background: radial-gradient(circle, #1a1a2e 0%, #050510 100%);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
+        /* 使用與遊戲館 index.html 一致的配色 */
+        :root {
+            --bg-color: #0d0d1a;
+            --card-bg: #1a1a2e;
+            --primary-color: #00f2ff;
+            --secondary-color: #e94560;
+            --text-color: #e0e0e0;
         }
-        .museum-title { font-size: 60px; color: var(--primary); text-shadow: 0 0 20px var(--primary); margin-bottom: 40px; }
-        .start-btn { 
-            padding: 20px 60px; font-size: 24px; background: transparent; border: 2px solid var(--primary);
-            color: var(--primary); cursor: pointer; border-radius: 50px; transition: 0.3s;
-        }
-        .start-btn:hover { background: var(--primary); color: black; box-shadow: 0 0 30px var(--primary); }
 
-        /* 畫布 */
-        #world { display: block; background: #0a0a1a; }
+        body { margin: 0; background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; height: 100vh; color: var(--text-color); font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; }
+        #gameContainer { position: relative; border: 3px solid #333; box-shadow: 0 0 30px rgba(0, 242, 255, 0.2); background: #000; border-radius: 10px; overflow: hidden; }
+        canvas { background-color: #16213e; display: block; }
+
+        /* 選單樣式：同步遊戲館風格 */
+        #mainMenu { position: absolute; inset: 0; background: rgba(13, 13, 26, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .title { font-size: 45px; color: var(--primary-color); margin-bottom: 30px; text-shadow: 0 0 15px rgba(0, 242, 255, 0.6); letter-spacing: 3px; font-weight: bold; }
+        .mode-btn { padding: 15px 50px; font-size: 20px; cursor: pointer; background: var(--card-bg); color: white; border: 1px solid #444; margin: 10px; border-radius: 50px; transition: 0.3s; width: 320px; font-weight: bold; text-decoration: none; text-align: center; border: 1px solid transparent; }
+        .mode-btn:hover { background: var(--primary-color); color: #000; border-color: #fff; box-shadow: 0 0 20px rgba(0, 242, 255, 0.4); transform: translateY(-3px); }
+        .exit-btn { border-color: var(--secondary-color); color: var(--secondary-color); }
+        .exit-btn:hover { background: var(--secondary-color); color: white; box-shadow: 0 0 20px rgba(233, 69, 96, 0.4); }
+
+        /* 比賽中止按鈕 */
+        #abortBtn { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); padding: 8px 20px; background: rgba(233, 69, 96, 0.2); color: var(--secondary-color); border: 1px solid var(--secondary-color); border-radius: 5px; cursor: pointer; z-index: 80; display: none; transition: 0.3s; font-weight: bold; }
+        #abortBtn:hover { background: var(--secondary-color); color: white; }
+
+        /* 戰鬥 UI：霓虹色調 */
+        .ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; pointer-events: none; visibility: hidden; }
+        .health-box { width: 320px; background: rgba(26, 26, 46, 0.8); padding: 12px; border-radius: 10px; border: 1px solid #333; }
+        .bar-bg { width: 100%; height: 18px; background: #000; border-radius: 9px; overflow: hidden; margin-top: 5px; border: 1px solid #444; }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #p1Health { background: linear-gradient(90deg, #00f2ff, #0066ff); box-shadow: 0 0 10px rgba(0, 242, 255, 0.5); }
+        #p2Health { background: linear-gradient(90deg, #e94560, #8b0000); box-shadow: 0 0 10px rgba(233, 69, 96, 0.5); }
+        .shield-dots { display: flex; gap: 5px; margin-top: 8px; justify-content: inherit; }
+        .dot { width: 18px; height: 6px; background: var(--primary-color); border-radius: 2px; box-shadow: 0 0 5px var(--primary-color); }
         
-        /* 遊戲提示 UI */
-        #hint {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 242, 255, 0.2); padding: 10px 30px; border-radius: 20px;
-            border: 1px solid var(--primary); pointer-events: none; display: none;
-        }
+        /* 結束畫面 */
+        #gameOverMenu { position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 50; flex-direction: column; gap: 15px; }
+        .end-btn { padding: 12px 50px; font-size: 18px; cursor: pointer; background: var(--primary-color); border: none; font-weight: bold; border-radius: 50px; text-decoration: none; color: #000; text-align: center; transition: 0.3s; }
+        .end-btn:hover { transform: scale(1.1); box-shadow: 0 0 20px var(--primary-color); }
+        .end-back-menu { background: var(--card-bg); color: white; border: 1px solid #444; }
+        .end-exit { background: transparent; border: 2px solid var(--secondary-color); color: var(--secondary-color); }
+        .end-exit:hover { background: var(--secondary-color); color: white; }
+
+        #status { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(13, 13, 26, 0.9); padding: 10px 30px; border-radius: 50px; font-size: 12px; visibility: hidden; border: 1px solid #333; text-align: center; white-space: nowrap; }
+        .win-text { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 70px; font-weight: bold; display: none; z-index: 10; text-shadow: 0 0 30px rgba(0,0,0,1); text-align: center; }
+        .key-hint { color: var(--primary-color); font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="welcomeOverlay">
-    <h1 class="museum-title">歡迎來到遊戲博物館</h1>
-    <button class="start-btn" onclick="enterMuseum()">開始探索</button>
+<div id="gameContainer">
+    <div id="mainMenu">
+        <div class="title">ARCADE FIGHTER</div>
+        <button class="mode-btn" onclick="initGame('single')">單人挑戰 (J/K/L 鍵可用)</button>
+        <button class="mode-btn" onclick="initGame('pvp')">雙人對戰 (Local PVP)</button>
+        <a href="index.html" class="mode-btn exit-btn">返回遊戲中心</a>
+    </div>
+
+    <button id="abortBtn" onclick="resetToMenu()">比賽中止</button>
+
+    <div class="ui-layer" id="gameUI">
+        <div class="health-box" style="border-left: 5px solid var(--primary-color);">
+            <div style="color: var(--primary-color); font-weight: bold;">PLAYER 1</div>
+            <div class="bar-bg"><div id="p1Health" class="bar-fill"></div></div>
+            <div class="shield-dots" id="p1Shield">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+        </div>
+        <div class="health-box p2" style="border-right: 5px solid var(--secondary-color);">
+            <div id="p2Name" style="color: var(--secondary-color); font-weight: bold;">PLAYER 2</div>
+            <div class="bar-bg"><div id="p2Health" class="bar-fill"></div></div>
+            <div class="shield-dots" id="p2Shield">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="winDisplay" class="win-text"></div>
+    
+    <div id="gameOverMenu">
+        <button class="end-btn" onclick="resetToMenu()">返回選單</button>
+        <a href="index.html" class="end-btn end-exit">回遊戲大廳</a>
+    </div>
+    
+    <canvas id="gameCanvas" width="900" height="450"></canvas>
+    
+    <div id="status">
+        P1: <span class="key-hint">WASD</span> 移動 | <span class="key-hint">Z/J</span> 攻 | <span class="key-hint">X/K</span> 擋 | <span class="key-hint">C/L</span> 破防 <br>
+        <span id="p2Hint">P2: <span class="key-hint">方向鍵</span> 移動 | <span class="key-hint">J</span> 攻 | <span class="key-hint">K</span> 擋 | <span class="key-hint">L</span> 破防</span>
+    </div>
 </div>
 
-<div id="hint">走入傳送陣以開始遊戲：<span id="gameName"></span></div>
-<canvas id="world"></canvas>
-
 <script>
-    const canvas = document.getElementById('world');
+    // 基礎代碼完全保留
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const hint = document.getElementById('hint');
-    const gameNameDisplay = document.getElementById('gameName');
+    const keys = {};
+    let gameActive = false;
+    let isSinglePlayer = true;
 
-    // 遊戲博物館配置
-    let player = { x: 450, y: 400, size: 20, speed: 4 };
-    let keys = {};
-    let running = false;
-
-    // 定義展區（遊戲入口）
-    const exhibitions = [
-        { name: "ARCADE FIGHTER", x: 150, y: 150, color: "#e94560", url: "game1.html" },
-        { name: "打磚塊進化版", x: 450, y: 150, color: "#00f2ff", url: "game4.html" },
-        { name: "霓虹飛行員", x: 750, y: 150, color: "#7000ff", url: "game8.html" }
-    ];
-
-    function enterMuseum() {
-        document.getElementById('welcomeOverlay').style.display = 'none';
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        running = true;
-        loop();
+    // 新增：重置到選單的功能
+    function resetToMenu() {
+        gameActive = false;
+        // 顯示主選單，隱藏戰鬥 UI
+        document.getElementById('mainMenu').style.display = 'flex';
+        document.getElementById('gameUI').style.visibility = 'hidden';
+        document.getElementById('status').style.visibility = 'hidden';
+        document.getElementById('abortBtn').style.display = 'none';
+        document.getElementById('winDisplay').style.display = 'none';
+        document.getElementById('gameOverMenu').style.display = 'none';
+        
+        // 清除畫布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 重設血條 UI
+        document.getElementById('p1Health').style.width = '100%';
+        document.getElementById('p2Health').style.width = '100%';
+        
+        // 停止目前的動畫幀循環 (透過 gameActive 變數控制)
     }
 
-    window.addEventListener('keydown', e => keys[e.key] = true);
-    window.addEventListener('keyup', e => keys[e.key] = false);
+    class Fighter {
+        constructor({position, color, id, isAI}) {
+            this.id = id;
+            this.position = position;
+            this.velocity = { x: 0, y: 0 };
+            this.width = 50;
+            this.height = 80;
+            this.color = color;
+            this.isAI = isAI;
+            this.health = 100;
+            this.state = 'IDLE'; 
+            this.facing = id === 1 ? 1 : -1;
+            this.hitstun = 0;
+            this.stunTimer = 0;
+            this.shieldHP = 5;
+            this.skillCD = 0; 
+        }
 
-    function update() {
-        if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
-        if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
-        if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
-        if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+        draw() {
+            const {x, y} = this.position;
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath(); ctx.ellipse(x + 25, y + 80, 25, 8, 0, 0, Math.PI*2); ctx.fill();
 
-        // 碰撞檢查
-        let nearExhibition = false;
-        exhibitions.forEach(ex => {
-            const dist = Math.hypot(player.x - ex.x, player.y - ex.y);
-            if (dist < 40) { // 進入範圍
-                window.location.href = ex.url; // 自動跳轉
+            if (this.state === 'STUNNED') ctx.fillStyle = '#aa00ff'; 
+            else if (this.state === 'HURT') ctx.fillStyle = 'white';
+            else if (this.state === 'BLOCK') ctx.fillStyle = '#FFD700'; 
+            else ctx.fillStyle = this.color;
+
+            ctx.fillRect(x + 10, y + 25, 30, 40);
+            ctx.fillStyle = '#ffdbac';
+            ctx.fillRect(x + 15, y, 20, 25);
+
+            ctx.fillStyle = (this.state === 'BLOCK') ? '#FFD700' : this.color;
+            if (this.state === 'ATTACK') {
+                ctx.fillRect(this.facing === 1 ? x + 35 : x - 15, y + 30, 30, 15);
+            } else if (this.state === 'BREAK') {
+                ctx.fillStyle = '#00ffff'; 
+                ctx.fillRect(this.facing === 1 ? x + 35 : x - 25, y + 20, 40, 30);
+            } else if (this.state === 'BLOCK') {
+                ctx.fillRect(x + 5, y + 15, 12, 35);
+                ctx.fillRect(x + 33, y + 15, 12, 35);
             }
-            if (dist < 100) {
-                nearExhibition = true;
-                hint.style.display = 'block';
-                gameNameDisplay.innerText = ex.name;
+        }
+
+        update() {
+            if (this.health <= 0) return;
+            if (this.stunTimer > 0) {
+                this.stunTimer--;
+                if (this.stunTimer === 0) { this.state = 'IDLE'; this.shieldHP = 5; this.updateShieldUI(); }
             }
-        });
-        if (!nearExhibition) hint.style.display = 'none';
+            if (this.hitstun > 0) {
+                this.hitstun--;
+                if (this.hitstun === 0 && this.state !== 'STUNNED') this.state = 'IDLE';
+            }
+            if (this.skillCD > 0) this.skillCD--;
+
+            this.draw();
+
+            if (this.state !== 'STUNNED') {
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
+            }
+            this.velocity.x *= 0.8;
+            this.velocity.y *= 0.8;
+
+            this.position.y = Math.max(180, Math.min(canvas.height - 90, this.position.y));
+            this.position.x = Math.max(0, Math.min(canvas.width - 50, this.position.x));
+        }
+
+        performAttack(target) {
+            if (this.state !== 'IDLE' || this.health <= 0) return;
+            this.state = 'ATTACK';
+            this.checkHit(target, 10, false);
+            setTimeout(() => { if(this.state === 'ATTACK') this.state = 'IDLE'; }, 200);
+        }
+
+        performBreak(target) {
+            if (this.state !== 'IDLE' || this.skillCD > 0 || this.health <= 0) return;
+            this.state = 'BREAK';
+            this.skillCD = 180; 
+            this.checkHit(target, 15, true);
+            setTimeout(() => { if(this.state === 'BREAK') this.state = 'IDLE'; }, 400);
+        }
+
+        checkHit(target, damage, isBreakSkill) {
+            const dx = target.position.x - this.position.x;
+            const dy = target.position.y - this.position.y;
+            if (Math.sign(dx) === this.facing && Math.abs(dx) < 75 && Math.abs(dy) < 35) {
+                target.receiveHit(damage, this.facing, isBreakSkill);
+            }
+        }
+
+        receiveHit(amt, direction, isBreakSkill) {
+            if (this.state === 'BLOCK' && !isBreakSkill) {
+                this.shieldHP--;
+                this.updateShieldUI();
+                this.velocity.x = direction * 5;
+                if (this.shieldHP <= 0) this.triggerStun();
+            } else if (isBreakSkill && this.state === 'BLOCK') {
+                this.triggerStun(); 
+                this.health -= amt;
+            } else {
+                this.health -= amt;
+                this.state = 'HURT';
+                this.hitstun = 15;
+                this.velocity.x = direction * 12;
+            }
+            document.getElementById(`p${this.id}Health`).style.width = Math.max(0, this.health) + '%';
+            if (this.health <= 0) finishGame(this.id === 1 ? 2 : 1);
+        }
+
+        triggerStun() {
+            this.state = 'STUNNED';
+            this.stunTimer = 120; 
+            this.shieldHP = 0;
+            this.updateShieldUI();
+        }
+
+        updateShieldUI() {
+            const dots = document.getElementById(`p${this.id}Shield`).children;
+            for(let i=0; i<5; i++) dots[i].style.opacity = (i < this.shieldHP) ? "1" : "0.1";
+        }
     }
 
-    function draw() {
-        ctx.fillStyle = '#050510';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    let p1, p2;
 
-        // 繪製裝飾網格
-        ctx.strokeStyle = '#1a1a2e';
-        for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
-        for(let i=0; i<canvas.height; i+=50) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
+    function initGame(mode) {
+        isSinglePlayer = (mode === 'single');
+        document.getElementById('mainMenu').style.display = 'none';
+        document.getElementById('gameUI').style.visibility = 'visible';
+        document.getElementById('status').style.visibility = 'visible';
+        document.getElementById('abortBtn').style.display = 'block';
+        
+        p1 = new Fighter({ position: {x: 150, y: 280}, color: '#00f2ff', id: 1, isAI: false });
+        p2 = new Fighter({ position: {x: 700, y: 280}, color: '#e94560', id: 2, isAI: isSinglePlayer });
+        
+        if (isSinglePlayer) {
+            document.getElementById('p2Name').innerText = "AI 忍者";
+            document.getElementById('p2Hint').style.display = 'none';
+        } else {
+            document.getElementById('p2Name').innerText = "PLAYER 2";
+            document.getElementById('p2Hint').style.display = 'inline';
+        }
+        
+        p1.updateShieldUI();
+        p2.updateShieldUI();
+        
+        gameActive = true;
+        updateLoop();
+    }
 
-        // 繪製展區傳送陣
-        exhibitions.forEach(ex => {
-            // 光環效果
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = ex.color;
-            ctx.strokeStyle = ex.color;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(ex.x, ex.y, 40, 0, Math.PI*2);
-            ctx.stroke();
+    function runAI() {
+        if (!gameActive || !p2.isAI || p2.state === 'STUNNED' || p2.state === 'HURT') return;
+        const dx = p1.position.x - p2.position.x;
+        const dy = p1.position.y - p2.position.y;
+        
+        if (Math.abs(dx) > 65) {
+            p2.velocity.x = dx > 0 ? 3.5 : -3.5;
+            p2.velocity.y = dy > 0 ? 3.5 : -3.5;
+            p2.facing = dx > 0 ? 1 : -1;
+            if (p2.state === 'BLOCK') p2.state = 'IDLE';
+        } else {
+            if (Math.random() < 0.05) p2.performAttack(p1);
+            if (p1.state === 'BLOCK' && Math.random() < 0.02) p2.performBreak(p1);
+            if (p1.state === 'ATTACK' && Math.random() < 0.1) p2.state = 'BLOCK';
+        }
+    }
+
+    window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+    function handleInput() {
+        if (!gameActive) return;
+
+        if (p1.state === 'IDLE' || p1.state === 'BLOCK') {
+            if (keys['w']) p1.velocity.y = -5; if (keys['s']) p1.velocity.y = 5;
+            if (keys['a']) { p1.velocity.x = -5; p1.facing = -1; }
+            if (keys['d']) { p1.velocity.x = 5; p1.facing = 1; }
             
-            // 文字
-            ctx.fillStyle = ex.color;
-            ctx.font = "16px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(ex.name, ex.x, ex.y - 60);
-        });
-        ctx.shadowBlur = 0;
+            if (keys['z'] || (isSinglePlayer && keys['j'])) p1.performAttack(p2);
+            if (keys['c'] || (isSinglePlayer && keys['l'])) p1.performBreak(p2);
+            if (keys['x'] || (isSinglePlayer && keys['k'])) p1.state = 'BLOCK';
+            else if (p1.state === 'BLOCK') p1.state = 'IDLE';
+        }
 
-        // 繪製玩家 (像 Pokemon 的小人)
-        ctx.fillStyle = "white";
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, player.size/2, 0, Math.PI*2);
-        ctx.fill();
-        // 玩家光暈
-        ctx.strokeStyle = varColor(0);
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        if (!p2.isAI && (p2.state === 'IDLE' || p2.state === 'BLOCK')) {
+            if (keys['arrowup']) p2.velocity.y = -5; if (keys['arrowdown']) p2.velocity.y = 5;
+            if (keys['arrowleft']) { p2.velocity.x = -5; p2.facing = -1; }
+            if (keys['arrowright']) { p2.velocity.x = 5; p2.facing = 1; }
+            if (keys['j']) p2.performAttack(p1);
+            if (keys['l']) p2.performBreak(p1);
+            if (keys['k']) p2.state = 'BLOCK';
+            else if (p2.state === 'BLOCK') p2.state = 'IDLE';
+        }
     }
 
-    function loop() {
-        if (!running) return;
-        update();
-        draw();
-        requestAnimationFrame(loop);
+    function finishGame(winnerId) {
+        gameActive = false;
+        document.getElementById('abortBtn').style.display = 'none';
+        const winDisplay = document.getElementById('winDisplay');
+        winDisplay.style.display = 'block';
+        winDisplay.innerText = winnerId === 1 ? "PLAYER 1 WIN!" : (p2.isAI ? "AI WIN!" : "PLAYER 2 WIN!");
+        winDisplay.style.color = winnerId === 1 ? "#00f2ff" : "#e94560";
+        document.getElementById('gameOverMenu').style.display = 'flex';
     }
 
-    function varColor(i) { return "#00f2ff"; }
+    function updateLoop() {
+        if (!gameActive && document.getElementById('mainMenu').style.display === 'flex') return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#16213e'; 
+        ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
+        ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)';
+        for(let i=0; i<10; i++) ctx.strokeRect(0, 200 + i*30, canvas.width, 1);
+
+        if (gameActive) {
+            handleInput();
+            if (p2.isAI) runAI();
+        }
+        
+        if (p1) p1.update();
+        if (p2) p2.update();
+        requestAnimationFrame(updateLoop);
+    }
 </script>
+
 </body>
 </html>

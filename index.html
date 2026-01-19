@@ -1,92 +1,143 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>8-BIT 遊戲中心 | 經典 HTML5 遊戲館</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <title>遊戲博物館 - RPG 探索模式</title>
+    <style>
+        :root { --primary: #00f2ff; --bg: #050510; }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        
+        /* 歡迎頁面 */
+        #welcomeOverlay {
+            position: fixed; inset: 0; background: radial-gradient(circle, #1a1a2e 0%, #050510 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .museum-title { font-size: 60px; color: var(--primary); text-shadow: 0 0 20px var(--primary); margin-bottom: 40px; }
+        .start-btn { 
+            padding: 20px 60px; font-size: 24px; background: transparent; border: 2px solid var(--primary);
+            color: var(--primary); cursor: pointer; border-radius: 50px; transition: 0.3s;
+        }
+        .start-btn:hover { background: var(--primary); color: black; box-shadow: 0 0 30px var(--primary); }
+
+        /* 畫布 */
+        #world { display: block; background: #0a0a1a; }
+        
+        /* 遊戲提示 UI */
+        #hint {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 242, 255, 0.2); padding: 10px 30px; border-radius: 20px;
+            border: 1px solid var(--primary); pointer-events: none; display: none;
+        }
+    </style>
 </head>
 <body>
 
-    <div class="container">
-        <header>
-            <h1>ARCADE HUB</h1>
-            <p class="subtitle">點擊下方卡片進入遊戲，挑戰最高紀錄！</p>
-        </header>
+<div id="welcomeOverlay">
+    <h1 class="museum-title">歡迎來到遊戲博物館</h1>
+    <button class="start-btn" onclick="enterMuseum()">開始探索</button>
+</div>
 
-        <main class="game-grid">
+<div id="hint">走入傳送陣以開始遊戲：<span id="gameName"></span></div>
+<canvas id="world"></canvas>
+
+<script>
+    const canvas = document.getElementById('world');
+    const ctx = canvas.getContext('2d');
+    const hint = document.getElementById('hint');
+    const gameNameDisplay = document.getElementById('gameName');
+
+    // 遊戲博物館配置
+    let player = { x: 450, y: 400, size: 20, speed: 4 };
+    let keys = {};
+    let running = false;
+
+    // 定義展區（遊戲入口）
+    const exhibitions = [
+        { name: "ARCADE FIGHTER", x: 150, y: 150, color: "#e94560", url: "game1.html" },
+        { name: "打磚塊進化版", x: 450, y: 150, color: "#00f2ff", url: "game4.html" },
+        { name: "霓虹飛行員", x: 750, y: 150, color: "#7000ff", url: "game8.html" }
+    ];
+
+    function enterMuseum() {
+        document.getElementById('welcomeOverlay').style.display = 'none';
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        running = true;
+        loop();
+    }
+
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    function update() {
+        if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
+        if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
+        if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
+        if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+
+        // 碰撞檢查
+        let nearExhibition = false;
+        exhibitions.forEach(ex => {
+            const dist = Math.hypot(player.x - ex.x, player.y - ex.y);
+            if (dist < 40) { // 進入範圍
+                window.location.href = ex.url; // 自動跳轉
+            }
+            if (dist < 100) {
+                nearExhibition = true;
+                hint.style.display = 'block';
+                gameNameDisplay.innerText = ex.name;
+            }
+        });
+        if (!nearExhibition) hint.style.display = 'none';
+    }
+
+    function draw() {
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 繪製裝飾網格
+        ctx.strokeStyle = '#1a1a2e';
+        for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+        for(let i=0; i<canvas.height; i+=50) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
+
+        // 繪製展區傳送陣
+        exhibitions.forEach(ex => {
+            // 光環效果
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = ex.color;
+            ctx.strokeStyle = ex.color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(ex.x, ex.y, 40, 0, Math.PI*2);
+            ctx.stroke();
             
-            <a href="game1.html" class="game-card">
-                <div class="game-icon">👊</div>
-                <div class="game-info">
-                    <h3>少林武俠</h3>
-                    <p>靈活轉向，挑戰最強身軀</p>
-                </div>
-            </a>
+            // 文字
+            ctx.fillStyle = ex.color;
+            ctx.font = "16px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(ex.name, ex.x, ex.y - 60);
+        });
+        ctx.shadowBlur = 0;
 
-            <a href="game2.html" class="game-card">
-                <div class="game-icon">⭕</div>
-                <div class="game-info">
-                    <h3>井字對抗賽</h3>
-                    <p>經典 3x3，看誰先連成線</p>
-                </div>
-            </a>
+        // 繪製玩家 (像 Pokemon 的小人)
+        ctx.fillStyle = "white";
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.size/2, 0, Math.PI*2);
+        ctx.fill();
+        // 玩家光暈
+        ctx.strokeStyle = varColor(0);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
 
-            <a href="game3.html" class="game-card">
-                <div class="game-icon">⚡</div>
-                <div class="game-info">
-                    <h3>極速點擊</h3>
-                    <p>測試你的手指反應極限</p>
-                </div>
-            </a>
+    function loop() {
+        if (!running) return;
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
 
-            <a href="game4.html" class="game-card">
-                <div class="game-icon">🧱</div>
-                <div class="game-info">
-                    <h3>打磚塊冒險</h3>
-                    <p>反彈小球，擊碎所有障礙</p>
-                </div>
-            </a>
-
-            <a href="game5.html" class="game-card">
-                <div class="game-icon">🧠</div>
-                <div class="game-info">
-                    <h3>記憶翻牌</h3>
-                    <p>翻開卡片，找出配對圖案</p>
-                </div>
-            </a>
-
-            <a href="game6.html" class="game-card">
-                <div class="game-icon">🔢</div>
-                <div class="game-info">
-                    <h3>神祕猜數字</h3>
-                    <p>根據提示猜出電腦心中數</p>
-                </div>
-            </a>
-
-            <a href="game7.html" class="game-card">
-                <div class="game-icon">🖐️</div>
-                <div class="game-info">
-                    <h3>猜拳大賽</h3>
-                    <p>與 AI 進行運氣與心理對決</p>
-                </div>
-            </a>
-
-            <a href="game8.html" class="game-card">
-                <div class="game-icon">🚀</div>
-                <div class="game-info">
-                    <h3>方塊飛行員</h3>
-                    <p>穿越通道，挑戰飛行距離</p>
-                </div>
-            </a>
-
-        </main>
-
-        <footer>
-            <p>&copy; 2026 我的 HTML5 遊戲館專案</p>
-        </footer>
-    </div>
-
+    function varColor(i) { return "#00f2ff"; }
+</script>
 </body>
 </html>
