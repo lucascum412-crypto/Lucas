@@ -237,4 +237,62 @@
     }
 
     window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
-    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false;
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+    function handleInput() {
+        if (!gameActive) return;
+
+        // P1 操作 (Z, X, C)
+        if (p1.state === 'IDLE' || p1.state === 'BLOCK') {
+            if (keys['w']) p1.velocity.y = -5; if (keys['s']) p1.velocity.y = 5;
+            if (keys['a']) { p1.velocity.x = -5; p1.facing = -1; }
+            if (keys['d']) { p1.velocity.x = 5; p1.facing = 1; }
+            if (keys['z']) p1.performAttack(p2);
+            if (keys['c']) p1.performBreak(p2);
+            if (keys['x']) p1.state = 'BLOCK';
+            else if (p1.state === 'BLOCK') p1.state = 'IDLE';
+        }
+
+        // P2 操作 (J, K, L) - 僅在雙人模式
+        if (!p2.isAI && (p2.state === 'IDLE' || p2.state === 'BLOCK')) {
+            if (keys['arrowup']) p2.velocity.y = -5; if (keys['arrowdown']) p2.velocity.y = 5;
+            if (keys['arrowleft']) { p2.velocity.x = -5; p2.facing = -1; }
+            if (keys['arrowright']) { p2.velocity.x = 5; p2.facing = 1; }
+            if (keys['j']) p2.performAttack(p1);
+            if (keys['l']) p2.performBreak(p1);
+            if (keys['k']) p2.state = 'BLOCK';
+            else if (p2.state === 'BLOCK') p2.state = 'IDLE';
+        }
+    }
+
+    function finishGame(winnerId) {
+        gameActive = false;
+        const winDisplay = document.getElementById('winDisplay');
+        winDisplay.style.display = 'block';
+        winDisplay.innerText = winnerId === 1 ? "PLAYER 1 WIN!" : (p2.isAI ? "AI WIN!" : "PLAYER 2 WIN!");
+        winDisplay.style.color = winnerId === 1 ? "#4ef037" : "#ff4d4d";
+        document.getElementById('restartBtn').style.display = 'block';
+    }
+
+    function updateLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 繪製背景地面
+        ctx.fillStyle = '#4a7a80'; 
+        ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        for(let i=0; i<10; i++) ctx.strokeRect(0, 200 + i*30, canvas.width, 1);
+
+        if (gameActive) {
+            handleInput();
+            if (p2.isAI) runAI();
+        }
+        
+        p1.update();
+        p2.update();
+        requestAnimationFrame(updateLoop);
+    }
+</script>
+
+</body>
+</html>

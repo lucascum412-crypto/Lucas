@@ -1,126 +1,52 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的遊戲館</title>
-    <style>
-        /* 1. 全局設定：更現代的字體與深色漸變背景 */
-        :root {
-            --primary-color: #00f260;
-            --secondary-color: #0575e6;
-            --card-bg: rgba(255, 255, 255, 0.05);
-            --text-glow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-
-        body {
-            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            color: white;
-            text-align: center;
-            padding: 40px 20px;
-            min-height: 100vh;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        /* 2. 標題特效 */
-        h1 { 
-            margin-bottom: 50px; 
-            font-size: 2.5em;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            text-shadow: var(--text-glow);
-            background: -webkit-linear-gradient(#eee, #333);
-        }
-
-        .games { 
-            display: flex; 
-            flex-wrap: wrap; 
-            justify-content: center; 
-            gap: 30px; 
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        /* 3. 卡片設計：毛玻璃效果 (Glassmorphism) */
-        .game-card {
-            background: var(--card-bg);
-            padding: 40px;
-            width: 200px;
-            border-radius: 20px;
-            text-decoration: none;
-            color: white;
-            transition: all 0.4s ease;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px); /* 背景模糊 */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        /* 懸停特效：上浮 + 霓虹邊框發光 */
-        .game-card:hover { 
-            transform: translateY(-10px); 
-            background: rgba(255, 255, 255, 0.1);
-            border-color: var(--primary-color);
-            box-shadow: 0 0 20px rgba(0, 242, 96, 0.4), inset 0 0 10px rgba(0, 242, 96, 0.2);
-        }
-
-        .icon { 
-            font-size: 3.5em; 
-            margin-bottom: 15px;
-            transition: transform 0.3s;
-        }
-
-        .game-card:hover .icon {
-            transform: scale(1.2) rotate(5deg);
-        }
-
-        .game-title {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .game-desc {
-            font-size: 0.8em;
-            color: #ccc;
-        }
-
-        /* 4. 手機版適配 */
-        @media (max-width: 600px) {
-            .game-card {
-                width: 100%; /* 手機上卡片佔滿寬度 */
-            }
-        }
-    </style>
+    <title>HTML5 超級遊戲館</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>🎮 我的遊戲館</h1>
-    
-    <div class="games">
+
+    <header>
+        <h1>🎮 HTML5 超級遊戲館 🕹️</h1>
+        <p>選擇一款遊戲開始挑戰！</p>
+    </header>
+
+    <div class="game-grid">
         <a href="game1.html" class="game-card">
-            <div class="icon">⚔️</div>
-            <div class="game-title">格鬥擂台</div>
-            <div class="game-desc">熱血對戰，勝者為王</div>
+            <div class="icon">🐍</div>
+            <h3>少林武俠</h3>
+            <p>經典不敗的反應遊戲</p>
         </a>
-        
+
         <a href="game2.html" class="game-card">
-            <div class="icon">🔫</div>
-            <div class="game-title">絕地生存</div>
-            <div class="game-desc">活到最後一刻</div>
+            <div class="icon">❌⭕</div>
+            <h3>井字遊戲</h3>
+            <p>雙人對戰智力比拼</p>
         </a>
 
         <a href="game3.html" class="game-card">
-            <div class="icon">🏎️</div>
-            <div class="game-title">極速賽車</div>
-            <div class="game-desc">超越極限的速度</div>
+            <div class="icon">⚡</div>
+            <h3>極速點擊</h3>
+            <p>測試你的手速極限</p>
         </a>
+
+        <a href="game4.html" class="game-card locked">
+            <div class="icon">🔒</div>
+            <h3>打磚塊</h3>
+            <p>(即將推出)</p>
+        </a>
+
+        <a href="#" class="game-card locked"><div class="icon">🔒</div><h3>記憶翻牌</h3></a>
+        <a href="#" class="game-card locked"><div class="icon">🔒</div><h3>猜數字</h3></a>
+        <a href="#" class="game-card locked"><div class="icon">🔒</div><h3>2048</h3></a>
+        <a href="#" class="game-card locked"><div class="icon">🔒</div><h3>太空射擊</h3></a>
     </div>
+
+    <footer>
+        <p>© 2024 我的遊戲館製作</p>
+    </footer>
 
 </body>
 </html>

@@ -1,425 +1,79 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>簡易版 Survivor.io (HTML5)</title>
+    <title>井字遊戲 - 遊戲館</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #222;
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        canvas {
-            background-color: #333;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            border: 2px solid #555;
-        }
-        #ui-layer {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            pointer-events: none;
-        }
-        #game-over {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 40px;
-            text-align: center;
-            border-radius: 10px;
-            display: none;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 18px;
-            cursor: pointer;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-        button:hover { background: #45a049; }
+        body { background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: Arial; }
+        .board { display: grid; grid-template-columns: repeat(3, 100px); gap: 5px; margin-bottom: 20px;}
+        .cell { width: 100px; height: 100px; background: #0f3460; font-size: 2em; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 10px; }
+        .cell:hover { background: #16213e; }
+        .back-btn { padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
+        #status { font-size: 1.5em; margin-bottom: 20px; color: #e94560;}
     </style>
 </head>
 <body>
-
-    <div id="ui-layer">
-        <h2>等級: <span id="level-display">1</span></h2>
-        <p>經驗值: <span id="xp-display">0</span> / <span id="next-level-xp">10</span></p>
-        <p>生命值: <span id="hp-display">100</span></p>
-        <p>得分: <span id="score-display">0</span></p>
+    <h2>❌⭕ 井字遊戲</h2>
+    <div id="status">輪到 X 玩家</div>
+    <div class="board" id="board">
+        <div class="cell" onclick="makeMove(0)"></div>
+        <div class="cell" onclick="makeMove(1)"></div>
+        <div class="cell" onclick="makeMove(2)"></div>
+        <div class="cell" onclick="makeMove(3)"></div>
+        <div class="cell" onclick="makeMove(4)"></div>
+        <div class="cell" onclick="makeMove(5)"></div>
+        <div class="cell" onclick="makeMove(6)"></div>
+        <div class="cell" onclick="makeMove(7)"></div>
+        <div class="cell" onclick="makeMove(8)"></div>
     </div>
+    <button onclick="resetGame()" style="padding:10px; cursor:pointer; margin-bottom: 10px;">重置遊戲</button>
+    <br>
+    <a href="index.html" class="back-btn">回大廳</a>
 
-    <canvas id="gameCanvas"></canvas>
+    <script>
+        let currentPlayer = 'X';
+        let board = ['', '', '', '', '', '', '', '', ''];
+        let gameActive = true;
 
-    <div id="game-over">
-        <h1>遊戲結束</h1>
-        <p>最終得分: <span id="final-score">0</span></p>
-        <button onclick="restartGame()">重新開始</button>
-    </div>
-
-<script>
-    // --- 1. 初始化設置 ---
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    
-    // 設定畫布大小
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    // 遊戲狀態
-    let gameState = 'playing'; // playing, gameover
-    let score = 0;
-    let frames = 0;
-
-    // --- 2. 遊戲實體類別 ---
-
-    // 玩家
-    const player = {
-        x: canvas.width / 2,
-        y: canvas.height / 2,
-        radius: 15,
-        color: '#4db8ff',
-        speed: 4,
-        hp: 100,
-        maxHp: 100,
-        level: 1,
-        xp: 0,
-        nextLevelXp: 10,
-        damage: 10
-    };
-
-    // 陣列儲存物件
-    let enemies = [];
-    let bullets = [];
-    let expGems = [];
-    let damageTexts = [];
-
-    // 輸入控制
-    const keys = { w: false, a: false, s: false, d: false };
-    
-    window.addEventListener('keydown', (e) => {
-        const key = e.key.toLowerCase();
-        if (keys.hasOwnProperty(key)) keys[key] = true;
-        // 支援方向鍵
-        if (e.key === 'ArrowUp') keys.w = true;
-        if (e.key === 'ArrowLeft') keys.a = true;
-        if (e.key === 'ArrowDown') keys.s = true;
-        if (e.key === 'ArrowRight') keys.d = true;
-    });
-
-    window.addEventListener('keyup', (e) => {
-        const key = e.key.toLowerCase();
-        if (keys.hasOwnProperty(key)) keys[key] = false;
-        if (e.key === 'ArrowUp') keys.w = false;
-        if (e.key === 'ArrowLeft') keys.a = false;
-        if (e.key === 'ArrowDown') keys.s = false;
-        if (e.key === 'ArrowRight') keys.d = false;
-    });
-
-    // --- 3. 輔助函數 ---
-    function getDistance(x1, y1, x2, y2) {
-        return Math.hypot(x1 - x2, y1 - y2);
-    }
-
-    // --- 4. 核心類別定義 ---
-
-    class Enemy {
-        constructor() {
-            // 從螢幕邊緣生成
-            if (Math.random() < 0.5) {
-                this.x = Math.random() < 0.5 ? 0 - 30 : canvas.width + 30;
-                this.y = Math.random() * canvas.height;
-            } else {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() < 0.5 ? 0 - 30 : canvas.height + 30;
-            }
-            
-            this.radius = 12;
-            this.color = '#ff4d4d';
-            // 敵人的速度和血量隨時間增加
-            this.speed = Math.random() * 1.5 + 1 + (score / 500); 
-            this.hp = 20 + (score / 10);
-        }
-
-        update() {
-            const angle = Math.atan2(player.y - this.y, player.x - this.x);
-            this.x += Math.cos(angle) * this.speed;
-            this.y += Math.sin(angle) * this.speed;
-        }
-
-        draw() {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = this.color;
-            ctx.fill();
-        }
-    }
-
-    class Bullet {
-        constructor(targetX, targetY) {
-            this.x = player.x;
-            this.y = player.y;
-            this.radius = 5;
-            this.color = '#ffff00';
-            this.speed = 10;
-            
-            const angle = Math.atan2(targetY - this.y, targetX - this.x);
-            this.velocity = {
-                x: Math.cos(angle) * this.speed,
-                y: Math.sin(angle) * this.speed
-            };
-        }
-
-        update() {
-            this.x += this.velocity.x;
-            this.y += this.velocity.y;
-        }
-
-        draw() {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = this.color;
-            ctx.fill();
-        }
-    }
-
-    class ExpGem {
-        constructor(x, y, value) {
-            this.x = x;
-            this.y = y;
-            this.value = value;
-            this.size = 8;
-            this.color = '#00ff99';
-        }
-        
-        draw() {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
-        }
-    }
-
-    class FloatingText {
-        constructor(x, y, text) {
-            this.x = x;
-            this.y = y;
-            this.text = text;
-            this.alpha = 1;
-        }
-        update() {
-            this.y -= 1;
-            this.alpha -= 0.03;
-        }
-        draw() {
-            ctx.globalAlpha = this.alpha;
-            ctx.fillStyle = 'white';
-            ctx.font = '14px Arial';
-            ctx.fillText(this.text, this.x, this.y);
-            ctx.globalAlpha = 1;
-        }
-    }
-
-    // --- 5. 遊戲主邏輯 ---
-
-    function spawnEnemies() {
-        // 每 60 幀生成一個敵人，隨分數增加生成頻率
-        let spawnRate = 60;
-        if (score > 500) spawnRate = 40;
-        if (score > 1000) spawnRate = 20;
-
-        if (frames % spawnRate === 0) {
-            enemies.push(new Enemy());
-        }
-    }
-
-    function autoAttack() {
-        // 每 30 幀射擊一次 (射速)
-        if (frames % 30 === 0 && enemies.length > 0) {
-            // 尋找最近的敵人
-            let closestEnemy = null;
-            let minDist = Infinity;
-
-            enemies.forEach(enemy => {
-                const dist = getDistance(player.x, player.y, enemy.x, enemy.y);
-                if (dist < minDist) {
-                    minDist = dist;
-                    closestEnemy = enemy;
-                }
-            });
-
-            if (closestEnemy) {
-                bullets.push(new Bullet(closestEnemy.x, closestEnemy.y));
-            }
-        }
-    }
-
-    function checkCollisions() {
-        // 子彈擊中敵人
-        bullets.forEach((bullet, bIndex) => {
-            // 超出螢幕移除
-            if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
-                setTimeout(() => bullets.splice(bIndex, 1), 0);
-                return;
-            }
-
-            enemies.forEach((enemy, eIndex) => {
-                const dist = getDistance(bullet.x, bullet.y, enemy.x, enemy.y);
-                if (dist - bullet.radius - enemy.radius < 1) {
-                    // 命中
-                    enemy.hp -= player.damage;
-                    bullets.splice(bIndex, 1);
-                    
-                    // 顯示傷害數字
-                    damageTexts.push(new FloatingText(enemy.x, enemy.y, player.damage));
-
-                    if (enemy.hp <= 0) {
-                        // 敵人死亡
-                        score += 10;
-                        expGems.push(new ExpGem(enemy.x, enemy.y, 5));
-                        enemies.splice(eIndex, 1);
-                    }
-                }
-            });
-        });
-
-        // 敵人碰到玩家
-        enemies.forEach((enemy) => {
-            const dist = getDistance(player.x, player.y, enemy.x, enemy.y);
-            if (dist - player.radius - enemy.radius < 1) {
-                player.hp -= 0.5; // 每幀扣血
-                if (player.hp <= 0) {
-                    endGame();
+        function makeMove(index) {
+            if (board[index] === '' && gameActive) {
+                board[index] = currentPlayer;
+                document.getElementsByClassName('cell')[index].innerText = currentPlayer;
+                checkWinner();
+                if(gameActive) {
+                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                    document.getElementById('status').innerText = "輪到 " + currentPlayer + " 玩家";
                 }
             }
-        });
+        }
 
-        // 玩家吃到經驗值
-        expGems.forEach((gem, index) => {
-            const dist = getDistance(player.x, player.y, gem.x, gem.y);
-            if (dist < player.radius + 15) { // 稍微大一點的撿取範圍
-                // 磁鐵效果
-                gem.x += (player.x - gem.x) * 0.2;
-                gem.y += (player.y - gem.y) * 0.2;
-                
-                if (dist < player.radius + gem.size) {
-                    player.xp += gem.value;
-                    expGems.splice(index, 1);
-                    checkLevelUp();
+        function checkWinner() {
+            const winConditions = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
+
+            for (let condition of winConditions) {
+                const [a, b, c] = condition;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    document.getElementById('status').innerText = "玩家 " + board[a] + " 獲勝！";
+                    gameActive = false;
+                    return;
                 }
             }
-        });
-    }
-
-    function checkLevelUp() {
-        if (player.xp >= player.nextLevelXp) {
-            player.level++;
-            player.xp -= player.nextLevelXp;
-            player.nextLevelXp = Math.floor(player.nextLevelXp * 1.5);
-            
-            // 升級獎勵
-            player.damage += 5;
-            player.hp = Math.min(player.hp + 20, player.maxHp); // 回血
-            
-            damageTexts.push(new FloatingText(player.x, player.y - 30, "LEVEL UP!"));
+            if (!board.includes('')) {
+                document.getElementById('status').innerText = "平局！";
+                gameActive = false;
+            }
         }
-    }
 
-    function updateUI() {
-        document.getElementById('level-display').innerText = player.level;
-        document.getElementById('xp-display').innerText = Math.floor(player.xp);
-        document.getElementById('next-level-xp').innerText = player.nextLevelXp;
-        document.getElementById('hp-display').innerText = Math.floor(player.hp);
-        document.getElementById('score-display').innerText = score;
-    }
-
-    function movePlayer() {
-        if (keys.w && player.y > player.radius) player.y -= player.speed;
-        if (keys.a && player.x > player.radius) player.x -= player.speed;
-        if (keys.s && player.y < canvas.height - player.radius) player.y += player.speed;
-        if (keys.d && player.x < canvas.width - player.radius) player.x += player.speed;
-    }
-
-    function animate() {
-        if (gameState !== 'playing') return;
-
-        requestAnimationFrame(animate);
-        frames++;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 更新與繪製玩家
-        movePlayer();
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-        ctx.fillStyle = player.color;
-        ctx.fill();
-
-        // 邏輯
-        spawnEnemies();
-        autoAttack();
-        
-        // 更新實體
-        bullets.forEach(b => { b.update(); b.draw(); });
-        enemies.forEach(e => { e.update(); e.draw(); });
-        expGems.forEach(g => g.draw());
-        
-        damageTexts.forEach((t, i) => {
-            t.update();
-            t.draw();
-            if (t.alpha <= 0) damageTexts.splice(i, 1);
-        });
-
-        checkCollisions();
-        updateUI();
-    }
-
-    function endGame() {
-        gameState = 'gameover';
-        document.getElementById('game-over').style.display = 'block';
-        document.getElementById('final-score').innerText = score;
-    }
-
-    window.restartGame = function() {
-        // 重置變數
-        gameState = 'playing';
-        score = 0;
-        frames = 0;
-        player.hp = 100;
-        player.x = canvas.width / 2;
-        player.y = canvas.height / 2;
-        player.level = 1;
-        player.xp = 0;
-        player.nextLevelXp = 10;
-        player.damage = 10;
-        
-        enemies = [];
-        bullets = [];
-        expGems = [];
-        damageTexts = [];
-        
-        document.getElementById('game-over').style.display = 'none';
-        animate();
-    };
-
-    // 開始遊戲
-    animate();
-
-    // 視窗大小調整
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    });
-
-</script>
+        function resetGame() {
+            board = ['', '', '', '', '', '', '', '', ''];
+            currentPlayer = 'X';
+            gameActive = true;
+            document.querySelectorAll('.cell').forEach(cell => cell.innerText = '');
+            document.getElementById('status').innerText = "輪到 X 玩家";
+        }
+    </script>
 </body>
 </html>
