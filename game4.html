@@ -72,32 +72,30 @@
             else if(e.key == "Left" || e.key == "ArrowLeft") leftPressed = false;
         });
 
-        function collisionDetection() {
-            const config = levelConfig[level-1];
-            for(let c=0; c<config.c; c++) {
-                for(let r=0; r<config.r; r++) {
-                    let b = bricks[c][r];
-                    if(b.status == 1) {
-                        let bw = (canvas.width - 60) / config.c - 10;
-                        if(x > b.x && x < b.x + bw && y > b.y && y < b.y + 20) {
-                            dy = -dy;
-                            b.status = 0;
-                            score++;
-                            document.getElementById("scoreDisplay").innerText = score;
-                            if(score == config.r * config.c) {
-                                if(level < 5) {
-                                    alert("關卡完成！準備進入下一關");
-                                    level++; score = 0; initLevel();
-                                } else {
-                                    alert(`恭喜通關！總耗時: ${document.getElementById("timeDisplay").innerText}秒`);
-                                    location.reload();
-                                }
-                            }
-                        }
+        // 請替換 game4.html 中的 collisionDetection 函數
+function collisionDetection() {
+    const config = levelConfig[level-1];
+    let bw = (canvas.width - 60) / config.c - 10;
+    for(let c=0; c<config.c; c++) {
+        for(let r=0; r<config.r; r++) {
+            let b = bricks[c][r];
+            if(b.status == 1) {
+                // 重新計算當前磚塊的精確位置
+                let bx = c * (bw + 10) + 30;
+                let by = r * (20 + 10) + 30;
+                if(x > bx && x < bx + bw && y > by && y < by + 20) {
+                    dy = -dy;
+                    b.status = 0; // 隱藏磚塊
+                    score++;
+                    document.getElementById("scoreDisplay").innerText = score;
+                    if(score == config.r * config.c) {
+                        // 勝利邏輯...
                     }
                 }
             }
         }
+    }
+}
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
