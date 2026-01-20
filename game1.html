@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>RONIN DUEL - 匠心巔峰修正版</title>
+    <title>RONIN DUEL - 影之反射</title>
     <style>
         :root {
             --bg: #0d0c0a;
@@ -22,7 +22,6 @@
             overflow: hidden;
         }
 
-        /* 電影感邊框 */
         #gameContainer::after {
             content: ""; position: absolute; inset: 0;
             box-shadow: inset 0 0 150px rgba(0,0,0,0.4);
@@ -31,7 +30,6 @@
 
         canvas { display: block; filter: contrast(1.1) saturate(0.8); }
         
-        /* UI 系統 */
         .hud { position: absolute; top: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 50px; box-sizing: border-box; pointer-events: none; z-index: 10; }
         .stats { width: 320px; }
         .label { font-size: 18px; margin-bottom: 8px; letter-spacing: 4px; font-weight: 900; color: var(--ink); text-shadow: 1px 1px 0px white; }
@@ -42,7 +40,6 @@
         #aiHP { background: var(--ai-color); z-index: 2; right: 0; }
         .stamina-bar { height: 4px; width: 0%; background: var(--gold); margin-top: 6px; box-shadow: 0 0 10px var(--gold); transition: width 0.2s; }
 
-        /* 選單與按鈕 */
         #overlay, #winScreen { 
             position: absolute; inset: 0; background: rgba(230, 220, 205, 0.95); 
             display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; 
@@ -64,13 +61,14 @@
 <div id="gameContainer">
     <div class="hud" id="gameHUD" style="display:none;">
         <div class="stats">
-            <div class="label">赤之流浪</div>
+            <div class="label">赤之流浪 (P1)</div>
             <div class="bar-outer"><div id="p1HP" class="bar-inner" style="width: 100%;"></div></div>
             <div id="p1EN" class="stamina-bar"></div>
         </div>
         <div class="stats" style="text-align:right;">
-            <div class="label">墨之守衛</div>
+            <div class="label">影之劍豪 (AI)</div>
             <div class="bar-outer"><div id="aiHP" class="bar-inner" style="width: 100%;"></div></div>
+            <div id="aiEN" class="stamina-bar" style="margin-left: auto;"></div>
         </div>
     </div>
 
@@ -91,7 +89,7 @@
     </div>
 
     <canvas id="stage" width="1000" height="500"></canvas>
-    <div class="hint">WASD: 走位 | J: 斬擊 | K: 格擋 (5次潰散) | L: 瞬步</div>
+    <div class="hint">WASD: 移動 | J: 斬擊 | K: 格擋 | L: 瞬步 (消耗氣力)</div>
 </div>
 
 <script>
@@ -104,12 +102,7 @@
     let petals = []; 
     let hitStop = 0; 
 
-    // 定義 JS 常量顏色，修復之前 var() 的錯誤
-    const COLOR_P1 = '#8b0000';
-    const COLOR_AI = '#2f4f4f';
-    const COLOR_GOLD = '#d4af37';
-    const COLOR_INK = '#1a1a1a';
-    const COLOR_PAPER = '#e6dccd';
+    const COLOR_P1 = '#8b0000', COLOR_AI = '#2f4f4f', COLOR_GOLD = '#d4af37', COLOR_INK = '#1a1a1a', COLOR_PAPER = '#e6dccd';
     const MIN_Y = 280, MAX_Y = 460;
 
     function backToHub() {
@@ -117,50 +110,34 @@
         window.location.href = `index.html?back=true&gate=${p.get('gate')||0}`;
     }
 
-    class Petal {
-        constructor() {
-            this.reset();
-            this.y = Math.random() * canvas.height;
-        }
-        reset() {
-            this.x = Math.random() * canvas.width;
-            this.y = -20;
-            this.size = Math.random() * 4 + 2;
-            this.speedX = Math.random() * 1 + 0.5;
-            this.speedY = Math.random() * 0.8 + 0.8;
-            this.rot = Math.random() * Math.PI * 2;
-        }
-        update() {
-            this.y += this.speedY;
-            this.x += Math.sin(this.y / 40) * 1.2;
-            this.rot += 0.04;
-            if (this.y > canvas.height + 20) this.reset();
-        }
-        draw() {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.rot);
-            ctx.fillStyle = "#ffc0cb"; 
-            ctx.beginPath();
-            ctx.ellipse(0, 0, this.size, this.size/1.5, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
     class Particle {
-        constructor(x, y, color, speed) {
+        constructor(x, y, color, speed, type = 'ink') {
             this.x = x; this.y = y;
             this.vx = (Math.random()-0.5)*speed;
             this.vy = (Math.random()-0.5)*speed;
             this.life = 1.0; this.color = color;
-            this.size = Math.random()*5 + 1;
+            this.size = type === 'ink' ? Math.random()*6 + 2 : Math.random()*3 + 1;
         }
-        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.03; }
+        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.025; }
         draw() {
             ctx.globalAlpha = this.life;
             ctx.fillStyle = this.color;
             ctx.fillRect(this.x, this.y, this.size, this.size);
+        }
+    }
+
+    class Petal {
+        constructor() { this.reset(); this.y = Math.random() * canvas.height; }
+        reset() {
+            this.x = Math.random() * canvas.width; this.y = -20;
+            this.size = Math.random() * 4 + 2;
+            this.speedY = Math.random() * 0.8 + 0.8;
+            this.rot = Math.random() * Math.PI * 2;
+        }
+        update() { this.y += this.speedY; this.rot += 0.04; if (this.y > canvas.height + 20) this.reset(); }
+        draw() {
+            ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rot);
+            ctx.fillStyle = "#ffc0cb"; ctx.beginPath(); ctx.ellipse(0, 0, this.size, this.size/1.5, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
         }
     }
 
@@ -171,14 +148,12 @@
             this.hp = 100; this.en = 0;
             this.facing = isAI ? -1 : 1;
             this.state = 'IDLE'; this.timer = 0;
-            this.blockHits = 0; this.frame = 0;
+            this.blockHits = 0;
         }
 
         draw() {
             const {x, y} = this.pos;
             const scale = 0.75 + (y - MIN_Y) / (MAX_Y - MIN_Y) * 0.45;
-            this.frame += 0.1;
-
             ctx.save();
             ctx.translate(x, y);
             ctx.scale(scale * this.facing, scale);
@@ -188,38 +163,20 @@
             ctx.fillStyle = 'rgba(0,0,0,0.12)';
             ctx.beginPath(); ctx.ellipse(0, 2, 35, 8, 0, 0, Math.PI*2); ctx.fill();
 
+            // 模組 (不改動)
             ctx.translate(0, -65);
-            
-            // 袴 (分層細節)
             ctx.fillStyle = this.state === 'HURT' ? '#fff' : this.color;
-            ctx.beginPath();
-            ctx.moveTo(-25, 45); ctx.lineTo(25, 45); 
-            ctx.lineTo(15, -10); ctx.lineTo(-15, -10);
-            ctx.fill();
-
-            // 上衣
-            ctx.globalAlpha = 0.95;
-            ctx.fillRect(-18, -35, 36, 30);
-            ctx.globalAlpha = 1;
-            
-            // 腰帶
-            ctx.fillStyle = COLOR_INK;
-            ctx.fillRect(-20, -10, 40, 6);
-
-            // 臉部
-            ctx.fillStyle = '#f3d1b0';
-            ctx.fillRect(-8, -52, 16, 18); 
-            
-            // 斗笠
-            ctx.fillStyle = '#7a6851'; 
-            ctx.beginPath();
-            ctx.moveTo(-40, -48); ctx.lineTo(40, -48); ctx.lineTo(0, -80);
-            ctx.fill();
+            ctx.beginPath(); // 袴
+            ctx.moveTo(-25, 45); ctx.lineTo(25, 45); ctx.lineTo(15, -10); ctx.lineTo(-15, -10); ctx.fill();
+            ctx.fillRect(-18, -35, 36, 30); // 上衣
+            ctx.fillStyle = COLOR_INK; ctx.fillRect(-20, -10, 40, 6); // 腰帶
+            ctx.fillStyle = '#f3d1b0'; ctx.fillRect(-8, -52, 16, 18); // 臉
+            ctx.fillStyle = '#7a6851'; // 斗笠
+            ctx.beginPath(); ctx.moveTo(-40, -48); ctx.lineTo(40, -48); ctx.lineTo(0, -80); ctx.fill();
             ctx.strokeStyle = COLOR_INK; ctx.lineWidth = 1; ctx.stroke();
 
-            // 武士刀邏輯
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = COLOR_INK;
+            // 武器
+            ctx.lineWidth = 3; ctx.strokeStyle = COLOR_INK;
             if(this.state === 'ATTACK') {
                 ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(65, -15); ctx.stroke();
                 ctx.fillStyle = '#fff'; ctx.fillRect(60, -18, 30, 6); 
@@ -228,23 +185,17 @@
                 ctx.strokeStyle = `rgb(${160 + bRatio*95}, ${160 - bRatio*160}, 40)`;
                 ctx.beginPath(); ctx.moveTo(15, 20); ctx.lineTo(25, -50); ctx.stroke();
             } else if(this.state === 'STUNNED') {
-                ctx.fillStyle = COLOR_GOLD;
-                ctx.font = "bold 14px serif";
-                ctx.fillText("崩解!", -15, -90);
+                ctx.fillStyle = COLOR_GOLD; ctx.font = "bold 14px serif"; ctx.fillText("崩解!", -15, -90);
             } else {
                 ctx.beginPath(); ctx.moveTo(-12, 5); ctx.lineTo(22, 28); ctx.stroke();
             }
-
             ctx.restore();
         }
 
         update(target) {
             if(hitStop > 0) return; 
-
-            this.pos.x += this.vel.x;
-            this.pos.y += this.vel.y;
+            this.pos.x += this.vel.x; this.pos.y += this.vel.y;
             this.vel.x *= 0.8; this.vel.y *= 0.8;
-
             this.pos.x = Math.max(70, Math.min(canvas.width-70, this.pos.x));
             this.pos.y = Math.max(MIN_Y, Math.min(MAX_Y, this.pos.y));
 
@@ -252,43 +203,37 @@
                 this.timer--;
                 if(this.timer === 0) this.state = 'IDLE';
             }
-            if(!this.isAI) this.en = Math.min(100, this.en + 0.35);
+            this.en = Math.min(100, this.en + 0.35);
+            const enBarId = this.isAI ? 'aiEN' : 'p1EN';
+            document.getElementById(enBarId).style.width = this.en + '%';
             this.draw();
         }
 
         perform(type, target) {
             if(this.state !== 'IDLE') return;
-
             if(type === 'ATTACK') {
                 this.state = 'ATTACK'; this.timer = 18;
-                const xDist = Math.abs(this.pos.x - target.pos.x);
-                const yDist = Math.abs(this.pos.y - target.pos.y);
-
-                if(xDist < 135 && yDist < 45) {
+                if(Math.abs(this.pos.x - target.pos.x) < 135 && Math.abs(this.pos.y - target.pos.y) < 45) {
                     target.getHit(12, this.facing);
-                    hitStop = 4; // 擊中感優化
-                    if(!this.isAI) this.en = Math.min(100, this.en + 12);
+                    hitStop = 4;
                 }
             } else if(type === 'DASH' && this.en >= 30) {
-                this.en -= 30; this.state = 'DASH'; this.timer = 12;
-                this.vel.x = this.facing * 45;
-                for(let i=0; i<8; i++) particles.push(new Particle(this.pos.x, this.pos.y, '#fff', 4));
+                this.en -= 30; this.state = 'DASH'; this.timer = 10;
+                this.vel.x = this.facing * 50;
+                // 瞬步才加水墨噴發
+                for(let i=0; i<12; i++) particles.push(new Particle(this.pos.x, this.pos.y-30, COLOR_INK, 6));
             }
         }
 
         getHit(dmg, dir) {
             if(this.state === 'BLOCK') {
-                this.blockHits++;
-                this.vel.x = dir * 10;
-                shake = 6;
+                this.blockHits++; shake = 6; this.vel.x = dir * 10;
                 if(this.blockHits >= 5) {
-                    this.state = 'STUNNED'; this.timer = 90;
-                    shake = 30; this.blockHits = 0;
-                    for(let i=0; i<20; i++) particles.push(new Particle(this.pos.x, this.pos.y-40, COLOR_INK, 10));
+                    this.state = 'STUNNED'; this.timer = 90; shake = 30; this.blockHits = 0;
+                    for(let i=0; i<25; i++) particles.push(new Particle(this.pos.x, this.pos.y-40, COLOR_INK, 10));
                 }
             } else if (this.state !== 'STUNNED') {
-                this.hp -= dmg; this.state = 'HURT'; this.timer = 20;
-                this.vel.x = dir * 20; shake = 15;
+                this.hp -= dmg; this.state = 'HURT'; this.timer = 20; this.vel.x = dir * 20; shake = 15;
                 for(let i=0; i<15; i++) particles.push(new Particle(this.pos.x, this.pos.y-40, this.color, 8));
             }
             document.getElementById(this.isAI ? 'aiHP' : 'p1HP').style.width = Math.max(0, this.hp) + '%';
@@ -297,35 +242,27 @@
     }
 
     for(let i=0; i<20; i++) petals.push(new Petal());
-
     let p1, ai;
 
     function startGame() {
         document.getElementById('overlay').style.display = 'none';
         document.getElementById('gameHUD').style.display = 'flex';
         p1 = new Fighter(200, 380, COLOR_P1, false);
-        ai = new Fighter(800, 380, COLOR_AI, true);
+        ai = new Fighter(820, 380, COLOR_AI, true);
         gameRunning = true;
         mainLoop();
     }
 
     function mainLoop() {
         if(!gameRunning) return;
-        
         if(hitStop > 0) { hitStop--; requestAnimationFrame(mainLoop); return; }
 
-        // 背景渲染
-        ctx.fillStyle = COLOR_PAPER;
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-
-        // 地面紋理
+        ctx.fillStyle = COLOR_PAPER; ctx.fillRect(0,0,canvas.width,canvas.height);
         ctx.strokeStyle = "rgba(0,0,0,0.06)";
-        ctx.lineWidth = 1;
         for(let i=MIN_Y; i<=MAX_Y; i+=35) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
-
         petals.forEach(p => { p.update(); p.draw(); });
 
-        // P1 輸入
+        // P1
         if(p1.state === 'IDLE' || p1.state === 'BLOCK') {
             if(keys['w']) p1.vel.y = -6; if(keys['s']) p1.vel.y = 6;
             if(keys['a']) { p1.vel.x = -8; p1.facing = -1; }
@@ -335,26 +272,33 @@
             if(keys['l']) p1.perform('DASH', ai);
         }
 
-        // AI 邏輯
+        // AI 邏輯提升
         if(ai.state === 'IDLE') {
-            const xDist = p1.pos.x - ai.pos.x;
-            const yDist = p1.pos.y - ai.pos.y;
-            ai.facing = xDist > 0 ? 1 : -1;
-            if(Math.abs(xDist) > 120) ai.vel.x = ai.facing * 4;
-            if(Math.abs(yDist) > 25) ai.vel.y = yDist > 0 ? 3 : -3;
-            if(Math.abs(xDist) < 145 && Math.abs(yDist) < 55) {
-                if(Math.random() < 0.04) ai.perform('ATTACK', p1);
-                if(p1.state === 'ATTACK' && Math.random() < 0.25) ai.state = 'BLOCK';
+            const dx = p1.pos.x - ai.pos.x;
+            const dy = p1.pos.y - ai.pos.y;
+            ai.facing = dx > 0 ? 1 : -1;
+
+            // 1. 影之瞬步：如果玩家在攻擊範圍內且正在攻擊，AI 機率瞬步後撤
+            if(p1.state === 'ATTACK' && Math.abs(dx) < 150 && ai.en >= 30 && Math.random() < 0.15) {
+                ai.facing = dx > 0 ? -1 : 1; // 轉向反面
+                ai.perform('DASH', p1);
+            } 
+            // 2. 正常追蹤
+            else {
+                if(Math.abs(dx) > 110) ai.vel.x = ai.facing * 4.5;
+                if(Math.abs(dy) > 20) ai.vel.y = dy > 0 ? 3 : -3;
+                if(Math.abs(dx) < 140 && Math.abs(dy) < 50) {
+                    if(Math.random() < 0.05) ai.perform('ATTACK', p1);
+                    if(p1.state === 'ATTACK' && Math.random() < 0.3) ai.state = 'BLOCK';
+                }
             }
         }
 
-        // 深度渲染排序
         if(p1.pos.y > ai.pos.y) { ai.update(p1); p1.update(ai); }
         else { p1.update(ai); ai.update(p1); }
 
         particles = particles.filter(p => p.life > 0);
         particles.forEach(p => { p.update(); p.draw(); });
-
         if(shake > 0) shake--;
         requestAnimationFrame(mainLoop);
     }
