@@ -2,67 +2,70 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Cyber Striker - Ultimate Solo</title>
+    <title>RONIN DUEL - 浪人決鬥</title>
     <style>
+        /* 1. 美術風格：浪人水墨風 */
         :root {
-            --bg: #030308;
-            --p1-neon: #00f2ff;
-            --ai-neon: #ff0055;
-            --gold: #ffd700;
+            --bg: #1a1712; /* 墨黑背景 */
+            --p1-color: #c43e3e; /* 深紅 (P1) */
+            --ai-color: #545e75; /* 藏藍 (AI) */
+            --gold: #d4af37; /* 枯黃/金 */
+            --ink: #111;
+            --paper: #e6dccd;
         }
-        body { margin: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Orbitron', sans-serif; overflow: hidden; color: white; }
+        body { margin: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'serif'; overflow: hidden; color: var(--paper); }
         
-        #gameContainer { position: relative; border: 2px solid #1a1a2e; box-shadow: 0 0 100px rgba(0, 242, 255, 0.1); border-radius: 8px; overflow: hidden; }
-        canvas { background: #050510; display: block; }
+        #gameContainer { position: relative; border: 4px double #3a352a; box-shadow: 0 0 50px rgba(0,0,0,0.8); border-radius: 4px; overflow: hidden; background: var(--paper); }
+        canvas { background: radial-gradient(circle at center, #e6dccd 0%, #c9bfa8 100%); display: block; cursor: crosshair; }
         
-        /* HUD 介面 */
-        .hud { position: absolute; top: 30px; width: 100%; display: flex; justify-content: space-around; pointer-events: none; z-index: 10; }
-        .stats { width: 380px; }
-        .label { font-size: 12px; margin-bottom: 6px; letter-spacing: 2px; text-transform: uppercase; font-weight: 900; }
-        .bar-outer { height: 12px; background: rgba(255,255,255,0.05); border: 1px solid #333; position: relative; overflow: hidden; }
-        .bar-inner { height: 100%; width: 100%; transition: width 0.4s cubic-bezier(0.1, 1, 0.1, 1); }
-        #p1HP { background: var(--p1-neon); box-shadow: 0 0 15px var(--p1-neon); }
-        #aiHP { background: var(--ai-neon); box-shadow: 0 0 15px var(--ai-neon); }
-        .energy-slot { height: 4px; width: 0%; background: var(--gold); margin-top: 8px; box-shadow: 0 0 10px var(--gold); transition: width 0.2s; }
+        /* HUD 介面 (仿古風) */
+        .hud { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; pointer-events: none; z-index: 10; text-shadow: 1px 1px 2px var(--ink); }
+        .stats { width: 350px; }
+        .label { font-size: 16px; margin-bottom: 8px; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; border-bottom: 2px solid rgba(0,0,0,0.2); display: inline-block; }
+        .bar-outer { height: 14px; background: rgba(0,0,0,0.2); border: 2px solid var(--ink); position: relative; }
+        .bar-inner { height: 100%; width: 100%; transition: width 0.3s ease-out; }
+        #p1HP { background: var(--p1-color); }
+        #aiHP { background: var(--ai-color); }
+        .stamina-bar { height: 6px; width: 0%; background: var(--gold); margin-top: 5px; border: 1px solid var(--ink); transition: width 0.2s; }
 
         /* 選單與覆蓋層 */
-        #overlay, #winScreen { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center; }
-        .btn { padding: 16px 45px; background: transparent; color: var(--p1-neon); border: 2px solid var(--p1-neon); cursor: pointer; font-size: 18px; font-family: 'Orbitron'; transition: 0.3s; margin-top: 20px; letter-spacing: 2px; }
-        .btn:hover { background: var(--p1-neon); color: black; box-shadow: 0 0 30px var(--p1-neon); transform: translateY(-2px); }
+        #overlay, #winScreen { position: absolute; inset: 0; background: rgba(26, 23, 18, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center; border: 4px double var(--gold); }
+        h1 { font-size: 60px; margin: 0; letter-spacing: 10px; color: var(--p1-color); text-shadow: 2px 2px 0 var(--ink); font-family: 'serif'; }
+        .btn { padding: 15px 50px; background: var(--paper); color: var(--ink); border: 3px solid var(--ink); cursor: pointer; font-size: 20px; font-family: 'serif'; transition: 0.2s; margin-top: 25px; letter-spacing: 3px; font-weight: bold; }
+        .btn:hover { background: var(--p1-color); color: var(--paper); border-color: var(--gold); transform: scale(1.05); }
         
-        .hint { position: absolute; bottom: 15px; width: 100%; text-align: center; color: #444; font-size: 11px; letter-spacing: 1px; }
+        .hint { position: absolute; bottom: 15px; width: 100%; text-align: center; color: var(--ink); font-size: 14px; font-weight: bold; background: rgba(230, 220, 205, 0.7); padding: 5px 0; }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <div id="gameContainer">
     <div class="hud" id="gameHUD" style="display:none;">
         <div class="stats">
-            <div class="label" style="color:var(--p1-neon)">P1 // STRIKER</div>
+            <div class="label" style="color:var(--p1-color)">浪人 (P1)</div>
             <div class="bar-outer"><div id="p1HP" class="bar-inner"></div></div>
-            <div id="p1EN" class="energy-slot"></div>
+            <div id="p1EN" class="stamina-bar"></div>
         </div>
         <div class="stats" style="text-align:right;">
-            <div class="label" style="color:var(--ai-neon)">AI // SENTINEL</div>
-            <div class="bar-outer"><div id="aiHP" class="bar-inner"></div></div>
+            <div class="label" style="color:var(--ai-color)">劍豪 (AI)</div>
+            <div class="bar-outer" style="justify-content: flex-end; display: flex;"><div id="aiHP" class="bar-inner"></div></div>
         </div>
     </div>
 
     <div id="overlay">
-        <h1 style="font-size:55px; margin:0; letter-spacing:8px; text-shadow: 0 0 20px var(--p1-neon);">CYBER STRIKER</h1>
-        <p style="color:#666; font-size:14px; margin-top:10px;">NEURAL LINK ESTABLISHED</p>
-        <button class="btn" onclick="startGame()">INITIATE COMBAT</button>
-        <button class="btn" style="border-color:#444; color:#444; font-size:14px;" onclick="backToHub()">EXIT TO HUB</button>
+        <h1>浪人決鬥</h1>
+        <p style="color:var(--gold); font-size:16px; margin-top:10px; letter-spacing: 2px;">生死一瞬 · 劍戟之道</p>
+        <button class="btn" onclick="startGame()">拔刀開戰</button>
+        <button class="btn" style="background:#3a352a; color:#ccc; border-color:#555;" onclick="backToHub()">返回庭院</button>
     </div>
 
     <div id="winScreen" style="display:none;">
-        <h2 id="resultMsg" style="font-size:45px; letter-spacing:5px;">MISSION COMPLETE</h2>
-        <button class="btn" onclick="location.reload()">REBOOT SYSTEM</button>
+        <h2 id="resultMsg" style="font-size:50px; letter-spacing:5px; color: var(--gold); text-shadow: 2px 2px 0 var(--ink);">勝負已分</h2>
+        <button class="btn" onclick="location.reload()">再戰一局</button>
     </div>
 
     <canvas id="stage" width="1000" height="500"></canvas>
-    <div class="hint">W/A/S/D: MOVE | J: STRIKE | K: BLOCK | L: DASH (30% ENERGY)</div>
+    <div class="hint">WASD: 八方移動 | J: 斬擊 | K: 格擋 (最多承受5次) | L: 瞬步 (消耗氣力)</div>
 </div>
 
 <script>
@@ -73,33 +76,43 @@
     let shake = 0;
     let particles = [];
 
-    // 固定顏色常量，修復之前的語法錯誤
-    const COLOR_P1 = '#00f2ff';
-    const COLOR_AI = '#ff0055';
-    const COLOR_GOLD = '#ffd700';
+    const COLOR_P1 = '#c43e3e';
+    const COLOR_AI = '#545e75';
+    const COLOR_GOLD = '#d4af37';
+    const COLOR_INK = '#111';
+    
+    // 2.5D 移動邊界
+    const MIN_Y = 250;
+    const MAX_Y = 450;
 
     function backToHub() {
         const p = new URLSearchParams(window.location.search);
         window.location.href = `index.html?back=true&gate=${p.get('gate')||0}`;
     }
 
+    // 水墨風格粒子
     class Particle {
-        constructor(x, y, color, speed=6) {
+        constructor(x, y, color, isBlade) {
             this.x = x; this.y = y;
-            this.vx = (Math.random()-0.5)*speed;
-            this.vy = (Math.random()-0.5)*speed;
+            this.vx = (Math.random()-0.5)* (isBlade ? 15 : 8);
+            this.vy = (Math.random()-0.5)* (isBlade ? 2 : 8);
             this.life = 1.0;
             this.color = color;
-            this.size = Math.random()*3 + 1;
+            this.size = Math.random()*(isBlade ? 4 : 6) + 2;
+            this.isBlade = isBlade;
         }
         update() { 
             this.x += this.vx; this.y += this.vy; 
-            this.life -= 0.025; 
+            this.life -= 0.03; 
+            if(!this.isBlade) this.vy += 0.2; // 重力效果
         }
         draw() {
             ctx.globalAlpha = this.life;
             ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.size, this.size);
+            // 畫出不規則的水墨點
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI*2);
+            ctx.fill();
             ctx.globalAlpha = 1;
         }
     }
@@ -113,62 +126,93 @@
             this.hp = 100;
             this.en = 0;
             this.facing = isAI ? -1 : 1;
-            this.state = 'IDLE'; // IDLE, ATTACK, BLOCK, HURT, DASH
+            this.state = 'IDLE'; // IDLE, ATTACK, BLOCK, HURT, DASH, STUNNED
             this.timer = 0;
             this.frame = 0;
+            // 3. 格擋崩解機制
+            this.blockHits = 0;
+            this.maxBlockHits = 5;
         }
 
         draw() {
-            this.frame += 0.15;
-            const float = Math.sin(this.frame) * 4;
+            this.frame += 0.1;
+            const breathe = Math.sin(this.frame) * 2;
             const {x, y} = this.pos;
+            
+            // 根據 Y 軸調整大小 (2.5D 透視感)
+            const scale = 0.8 + (y - MIN_Y) / (MAX_Y - MIN_Y) * 0.4;
 
             ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale); // 應用透視縮放
             if (shake > 0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
             
-            // 投影
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.beginPath(); ctx.ellipse(x+25, y+85, 22, 6, 0, 0, Math.PI*2); ctx.fill();
+            // 腳底陰影
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath(); ctx.ellipse(0, 10, 30, 8, 0, 0, Math.PI*2); ctx.fill();
 
-            // 繪製 Cyber-Frame 模組
-            ctx.translate(x+25, y+45 + float);
+            // 角色繪製中心點上移
+            ctx.translate(0, -60); 
             if(this.facing === -1) ctx.scale(-1, 1);
 
-            // 1. 核心 Glow
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = this.color;
-            ctx.fillStyle = this.state === 'HURT' ? '#fff' : this.color;
+            // --- 浪人模組繪製 ---
             
-            // 軀幹 (幾何感)
+            // 身體 (道袍)
+            ctx.fillStyle = this.state === 'HURT' || this.state === 'STUNNED' ? '#fff' : this.color;
             ctx.beginPath();
-            ctx.moveTo(-15, -35); ctx.lineTo(15, -35); ctx.lineTo(22, 0);
-            ctx.lineTo(15, 35); ctx.lineTo(-15, 35); ctx.lineTo(-22, 0);
+            ctx.moveTo(-20, -30 + breathe); ctx.lineTo(20, -30 + breathe);
+            ctx.lineTo(30, 40); ctx.lineTo(-30, 40);
             ctx.closePath(); ctx.fill();
-
-            // 2. 獨立頭部
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(-12, -55, 24, 14);
-            ctx.fillStyle = this.color;
-            ctx.fillRect(4, -50, 10, 4); // 護目鏡
-
-            // 3. 肢體線條 (修正點)
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = this.state === 'BLOCK' ? COLOR_GOLD : '#fff';
-            ctx.shadowBlur = this.state === 'BLOCK' ? 10 : 0;
             
-            ctx.beginPath(); 
-            ctx.moveTo(-20, 0); 
+            // 腰帶
+            ctx.fillStyle = COLOR_INK;
+            ctx.fillRect(-22, 0 + breathe, 44, 8);
+
+            // 頭部
+            ctx.fillStyle = '#ffe0bd'; // 皮膚色
+            ctx.fillRect(-10, -50 + breathe, 20, 20);
+
+            // 陣笠 (浪人斗笠)
+            ctx.fillStyle = '#8b7d6b'; // 稻草色
+            ctx.beginPath();
+            ctx.moveTo(-35, -45 + breathe); ctx.lineTo(35, -45 + breathe); ctx.lineTo(0, -75 + breathe);
+            ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = COLOR_INK; ctx.lineWidth = 2; ctx.stroke();
+
+            // 手臂與武士刀
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = COLOR_INK;
+            ctx.fillStyle = '#ccc'; // 刀刃色
+
+            ctx.beginPath();
             if(this.state === 'ATTACK') {
-                ctx.lineTo(45, -5); 
-                ctx.stroke();
-                // 擊打光效
-                ctx.fillStyle = '#fff'; ctx.fillRect(40, -10, 12, 12);
+                // 揮刀動作
+                ctx.moveTo(-10, -10); ctx.lineTo(40, -10); ctx.stroke();
+                // 刀刃
+                ctx.fillRect(40, -15, 30, 10);
+                // 劍氣特效
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(30, 0, 50, -0.5, 0.5); ctx.stroke();
             } else if(this.state === 'BLOCK') {
-                ctx.lineTo(15, -25); ctx.lineTo(15, 25); ctx.stroke();
-            } else if(this.state === 'DASH') {
-                ctx.lineTo(-50, 0); ctx.stroke(); // 衝刺拖尾
+                // 格擋動作
+                ctx.moveTo(10, 0); ctx.lineTo(25, -30); ctx.stroke();
+                ctx.fillRect(22, -45, 6, 30);
+                
+                // 格擋特效：顏色隨耐久度變化
+                const blockRatio = this.blockHits / this.maxBlockHits;
+                ctx.strokeStyle = `rgb(${255 * blockRatio}, ${255 * (1-blockRatio)}, 50)`;
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(30, -20, 25 + blockRatio*10, Math.PI/4, -Math.PI/4, true); ctx.stroke();
+
+            } else if (this.state === 'STUNNED') {
+                 // 暈眩動作
+                 ctx.moveTo(-10, -10); ctx.lineTo(-20, 10); ctx.stroke();
+                 ctx.moveTo(10, -10); ctx.lineTo(20, 10); ctx.stroke();
+                 ctx.fillStyle = COLOR_GOLD; ctx.fillText("???", -15, -80);
             } else {
-                ctx.lineTo(-35, 25); ctx.stroke();
+                // 待機持刀
+                ctx.moveTo(-15, 0); ctx.lineTo(15, 20); ctx.stroke();
+                ctx.fillRect(12, 15, 30, 4); // 刀鞘
             }
 
             ctx.restore();
@@ -176,16 +220,25 @@
 
         update(target) {
             this.pos.x += this.vel.x;
-            this.vel.x *= 0.82;
-            this.pos.x = Math.max(0, Math.min(canvas.width-50, this.pos.x));
+            this.pos.y += this.vel.y;
+            this.vel.x *= 0.8;
+            this.vel.y *= 0.8;
+
+            // 2.5D 邊界限制
+            this.pos.x = Math.max(50, Math.min(canvas.width-50, this.pos.x));
+            this.pos.y = Math.max(MIN_Y, Math.min(MAX_Y, this.pos.y));
 
             if(this.timer > 0) {
                 this.timer--;
-                if(this.timer === 0) this.state = 'IDLE';
+                if(this.timer === 0) {
+                    this.state = 'IDLE';
+                    // 如果從暈眩恢復，重置格擋計數
+                    if(this.blockHits >= this.maxBlockHits) this.blockHits = 0;
+                }
             }
 
-            if(!this.isAI) {
-                this.en = Math.min(100, this.en + 0.2);
+            if(!this.isAI && this.state !== 'STUNNED') {
+                this.en = Math.min(100, this.en + 0.3);
                 document.getElementById('p1EN').style.width = this.en + '%';
             }
 
@@ -196,36 +249,54 @@
             if(this.state !== 'IDLE') return;
 
             if(type === 'ATTACK') {
-                this.state = 'ATTACK'; this.timer = 12;
-                const dist = Math.abs((this.pos.x + 25) - (target.pos.x + 25));
-                if(dist < 100) {
-                    target.getHit(10, this.facing);
-                    if(!this.isAI) this.en = Math.min(100, this.en + 12);
+                this.state = 'ATTACK'; this.timer = 15;
+                this.vel.x = this.facing * 5; // 攻擊時小幅前進
+                
+                // 2.5D 攻擊判定：檢查 X軸距離 和 Y軸縱深
+                const xDist = Math.abs(this.pos.x - target.pos.x);
+                const yDist = Math.abs(this.pos.y - target.pos.y);
+
+                if(xDist < 110 && yDist < 35) { // 縱深差距小於 35 才算打中
+                    // 揮刀粒子
+                    for(let i=0; i<5; i++) particles.push(new Particle(this.pos.x + this.facing*40, this.pos.y-40, '#fff', true));
+                    target.getHit(12, this.facing);
+                    if(!this.isAI) this.en = Math.min(100, this.en + 15);
                 }
             } else if(type === 'DASH' && this.en >= 30) {
-                this.en -= 30; this.state = 'DASH'; this.timer = 10;
-                this.vel.x = this.facing * 35;
-                // 衝刺粒子
-                for(let i=0; i<12; i++) particles.push(new Particle(this.pos.x+25, this.pos.y+45, this.color));
+                this.en -= 30; this.state = 'DASH'; this.timer = 12;
+                this.vel.x = this.facing * 40;
+                // 瞬步煙塵
+                for(let i=0; i<10; i++) particles.push(new Particle(this.pos.x, this.pos.y, '#ddd', false));
             }
         }
 
         getHit(dmg, dir) {
             if(this.state === 'BLOCK') {
-                this.vel.x = dir * 6; shake = 4;
-            } else {
-                this.hp -= dmg; this.state = 'HURT'; this.timer = 14;
-                this.vel.x = dir * 18; shake = 12;
-                // 電子火花粒子
-                for(let i=0; i<15; i++) particles.push(new Particle(this.pos.x+25, this.pos.y+45, '#fff', 10));
+                this.blockHits++;
+                this.vel.x = dir * 8; shake = 5;
+                // 格擋火花
+                for(let i=0; i<5; i++) particles.push(new Particle(this.pos.x+dir*20, this.pos.y-40, COLOR_GOLD, true));
+                
+                // 3. 格擋崩解判定
+                if(this.blockHits >= this.maxBlockHits) {
+                    this.state = 'STUNNED'; // 破防暈眩
+                    this.timer = 90; // 長時間僵直
+                    shake = 20;
+                    this.vel.x = dir * 25;
+                    // 破防大爆炸特效
+                    for(let i=0; i<30; i++) particles.push(new Particle(this.pos.x, this.pos.y-40, COLOR_P1, false));
+                }
+
+            } else if (this.state !== 'STUNNED') {
+                this.hp -= dmg; this.state = 'HURT'; this.timer = 18;
+                this.vel.x = dir * 20; shake = 12;
+                // 噴血特效 (水墨風)
+                for(let i=0; i<20; i++) particles.push(new Particle(this.pos.x, this.pos.y-40, this.color, false));
             }
+            
             const barId = this.isAI ? 'aiHP' : 'p1HP';
             document.getElementById(barId).style.width = Math.max(0, this.hp) + '%';
-            if(this.hp <= 0) {
-                // 死亡爆炸效果
-                for(let i=0; i<40; i++) particles.push(new Particle(this.pos.x+25, this.pos.y+45, this.color, 15));
-                endGame(this.isAI ? 'WIN' : 'LOSS');
-            }
+            if(this.hp <= 0) endGame(this.isAI ? 'WIN' : 'LOSS');
         }
     }
 
@@ -234,8 +305,8 @@
     function startGame() {
         document.getElementById('overlay').style.display = 'none';
         document.getElementById('gameHUD').style.display = 'flex';
-        p1 = new Fighter(150, 300, COLOR_P1, false);
-        ai = new Fighter(800, 300, COLOR_AI, true);
+        p1 = new Fighter(200, 350, COLOR_P1, false);
+        ai = new Fighter(800, 350, COLOR_AI, true);
         gameRunning = true;
         mainLoop();
     }
@@ -243,40 +314,47 @@
     function mainLoop() {
         if(!gameRunning) return;
         
-        // 渲染背景
-        ctx.fillStyle = '#050510'; ctx.fillRect(0,0,canvas.width,canvas.height);
-        
-        // 科技感背景網格
-        ctx.strokeStyle = 'rgba(0, 242, 255, 0.05)';
-        ctx.lineWidth = 1;
-        for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
-        for(let j=0; j<canvas.height; j+=50) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(canvas.width,j); ctx.stroke(); }
+        // 繪製背景 (枯山水庭院風格)
+        ctx.fillStyle = '#e6dccd'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        // 地面紋理
+        ctx.fillStyle = '#d9cfae'; ctx.fillRect(0, MIN_Y-20, canvas.width, MAX_Y-MIN_Y+40);
+        ctx.strokeStyle = '#c9bfa8'; ctx.lineWidth = 2;
+        for(let i=MIN_Y; i<=MAX_Y; i+=30) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
 
-        // P1 控制輸入
+        // P1 控制輸入 (加入 W/S 移動)
         if(p1.state === 'IDLE' || p1.state === 'BLOCK') {
+            if(keys['w']) p1.vel.y = -6;
+            if(keys['s']) p1.vel.y = 6;
             if(keys['a']) { p1.vel.x = -8; p1.facing = -1; }
             if(keys['d']) { p1.vel.x = 8; p1.facing = 1; }
+            
             if(keys['j']) p1.perform('ATTACK', ai);
             if(keys['k']) p1.state = 'BLOCK'; else if(p1.state === 'BLOCK') p1.state = 'IDLE';
             if(keys['l']) p1.perform('DASH', ai);
         }
 
-        // AI 邏輯
+        // AI 邏輯 (加入 2.5D 追蹤)
         if(ai.state === 'IDLE') {
-            const dist = p1.pos.x - ai.pos.x;
-            ai.facing = dist > 0 ? 1 : -1;
-            if(Math.abs(dist) > 90) {
-                ai.vel.x = ai.facing * 4.5;
-            } else {
-                if(Math.random() < 0.07) ai.perform('ATTACK', p1);
-                if(p1.state === 'ATTACK' && Math.random() < 0.2) ai.state = 'BLOCK';
+            const xDist = p1.pos.x - ai.pos.x;
+            const yDist = p1.pos.y - ai.pos.y;
+            ai.facing = xDist > 0 ? 1 : -1;
+
+            // 在 X 軸和 Y 軸上接近玩家
+            if(Math.abs(xDist) > 100) ai.vel.x = ai.facing * 4;
+            if(Math.abs(yDist) > 20) ai.vel.y = yDist > 0 ? 3 : -3;
+
+            // 攻擊決策
+            if(Math.abs(xDist) < 120 && Math.abs(yDist) < 40) {
+                if(Math.random() < 0.05) ai.perform('ATTACK', p1);
+                // 如果玩家攻擊且自己格擋次數不多，則嘗試格擋
+                if(p1.state === 'ATTACK' && ai.blockHits < 3 && Math.random() < 0.4) ai.state = 'BLOCK';
             }
         }
 
-        p1.update(ai);
-        ai.update(p1);
+        // 根據 Y 軸排序渲染順序 (前面的蓋住後面的)
+        if(p1.pos.y > ai.pos.y) { ai.update(p1); p1.update(ai); }
+        else { p1.update(ai); ai.update(p1); }
 
-        // 特效處理
         particles = particles.filter(p => p.life > 0);
         particles.forEach(p => { p.update(); p.draw(); });
 
@@ -289,13 +367,8 @@
         setTimeout(() => {
             document.getElementById('winScreen').style.display = 'flex';
             const msg = document.getElementById('resultMsg');
-            if(result === 'WIN') {
-                msg.innerText = "MISSION ACCOMPLISHED";
-                msg.style.color = COLOR_P1;
-            } else {
-                msg.innerText = "NEURAL LINK SEVERED";
-                msg.style.color = COLOR_AI;
-            }
+            msg.innerText = result === 'WIN' ? "敵將討取" : "勝敗乃兵家常事";
+            msg.style.color = result === 'WIN' ? COLOR_P1 : COLOR_AI;
         }, 1000);
     }
 
