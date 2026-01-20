@@ -2,29 +2,28 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>RONIN DUEL - 戰術大師</title>
+    <title>RONIN DUEL - 純淨刀鋒</title>
     <style>
         :root {
             --bg: #0d0c0a; --p1-color: #8b0000; --ai-color: #2f4f4f;
             --gold: #d4af37; --paper: #e6dccd; --ink: #1a1a1a;
         }
         body { margin: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; font-family: serif; overflow: hidden; }
-        #gameContainer { position: relative; border: 8px double var(--ink); box-shadow: 0 0 80px rgba(0,0,0,0.9); background: var(--paper); overflow: hidden; }
-        canvas { display: block; filter: contrast(1.1) saturate(0.8); }
+        #gameContainer { position: relative; border: 8px double var(--ink); background: var(--paper); overflow: hidden; }
+        canvas { display: block; }
         
         .hud { position: absolute; top: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 50px; box-sizing: border-box; pointer-events: none; z-index: 10; }
-        .stats { width: 320px; }
-        .label { font-size: 18px; margin-bottom: 8px; letter-spacing: 4px; font-weight: 900; color: var(--ink); }
-        .bar-outer { height: 16px; background: rgba(0,0,0,0.1); border: 2px solid var(--ink); position: relative; }
-        .bar-inner { height: 100%; position: absolute; transition: width 0.3s ease-out; }
+        .stats { width: 300px; }
+        .label { font-size: 18px; margin-bottom: 5px; font-weight: 900; color: var(--ink); }
+        .bar-outer { height: 14px; background: rgba(0,0,0,0.1); border: 2px solid var(--ink); position: relative; }
+        .bar-inner { height: 100%; position: absolute; transition: width 0.2s; }
         #p1HP { background: var(--p1-color); }
         #aiHP { background: var(--ai-color); right: 0; }
-        .stamina-bar { height: 4px; width: 0%; background: var(--gold); margin-top: 6px; transition: width 0.2s; }
+        .stamina-bar { height: 4px; width: 0%; background: var(--gold); margin-top: 4px; }
 
-        #overlay, #winScreen { position: absolute; inset: 0; background: rgba(230, 220, 205, 0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
-        .btn { padding: 12px 50px; background: var(--ink); color: var(--paper); border: 1px solid var(--gold); cursor: pointer; font-size: 18px; transition: 0.3s; letter-spacing: 5px; font-weight: bold; margin-bottom: 10px; }
-        .btn:hover { background: var(--gold); color: var(--ink); }
-        .hint { position: absolute; bottom: 20px; color: var(--ink); font-size: 12px; opacity: 0.7; }
+        #overlay, #winScreen { position: absolute; inset: 0; background: var(--paper); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .btn { padding: 10px 40px; background: var(--ink); color: var(--paper); border: 1px solid var(--gold); cursor: pointer; font-size: 18px; letter-spacing: 5px; margin-bottom: 10px; }
+        .hint { position: absolute; bottom: 20px; color: var(--ink); font-size: 12px; }
     </style>
 </head>
 <body>
@@ -32,31 +31,30 @@
 <div id="gameContainer">
     <div class="hud" id="gameHUD" style="display:none;">
         <div class="stats">
-            <div class="label">赤之流浪</div>
+            <div class="label">赤流</div>
             <div class="bar-outer"><div id="p1HP" class="bar-inner" style="width: 100%;"></div></div>
             <div id="p1EN" class="stamina-bar"></div>
         </div>
         <div class="stats" style="text-align:right;">
-            <div class="label">墨之劍豪</div>
+            <div class="label">墨影</div>
             <div class="bar-outer"><div id="aiHP" class="bar-inner" style="width: 100%;"></div></div>
             <div id="aiEN" class="stamina-bar" style="margin-left: auto;"></div>
         </div>
     </div>
 
     <div id="overlay">
-        <h1 style="font-size: 70px; letter-spacing: 20px;">浪人道</h1>
+        <h1 style="font-size: 60px; letter-spacing: 15px;">浪人道</h1>
         <button class="btn" onclick="startGame()">拔刀</button>
-        <button class="btn" style="background:transparent; color:black;" onclick="backToHub()">大廳</button>
+        <button class="btn" style="background:none; color:black;" onclick="backToHub()">大廳</button>
     </div>
 
     <div id="winScreen" style="display:none;">
-        <h2 id="resultMsg" style="font-size:50px;">勝負已分</h2>
+        <h2 id="resultMsg" style="font-size:40px;">勝負已分</h2>
         <button class="btn" onclick="location.reload()">再戰</button>
-        <button class="btn" style="background:transparent; color:black;" onclick="backToHub()">大廳</button>
     </div>
 
     <canvas id="stage" width="1000" height="500"></canvas>
-    <div class="hint">注意：格擋無法防禦背後攻擊 | 格擋5次後進入受擊狀態</div>
+    <div class="hint">瞬移無殘影 | 背後不設防 | 崩解後處決</div>
 </div>
 
 <script>
@@ -68,16 +66,21 @@
     const COLOR_P1 = '#8b0000', COLOR_AI = '#2f4f4f', COLOR_GOLD = '#d4af37', COLOR_INK = '#1a1a1a', COLOR_PAPER = '#e6dccd';
     const MIN_Y = 280, MAX_Y = 460;
 
-    function backToHub() { window.location.href = `index.html?back=true`; }
+    function backToHub() { window.location.href = `index.html`; }
 
     class Particle {
         constructor(x, y, color) {
             this.x = x; this.y = y;
-            this.vx = (Math.random()-0.5)*10; this.vy = (Math.random()-0.5)*10;
+            this.vx = (Math.random()-0.5)*8; this.vy = (Math.random()-0.5)*8;
             this.life = 1.0; this.color = color;
         }
-        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.04; }
-        draw() { ctx.globalAlpha = this.life; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 4, 4); }
+        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.05; }
+        draw() {
+            ctx.globalAlpha = this.life;
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, 3, 3);
+            ctx.globalAlpha = 1.0; // 關鍵：繪製完粒子立即重置透明度
+        }
     }
 
     class Fighter {
@@ -101,24 +104,24 @@
             ctx.fillStyle = 'rgba(0,0,0,0.15)';
             ctx.beginPath(); ctx.ellipse(0, 0, 35, 8, 0, 0, Math.PI*2); ctx.fill();
 
-            // 浪人模組
+            // 浪人模組 (保持不變)
             ctx.translate(0, -65);
             ctx.fillStyle = (this.state === 'HURT' || this.state === 'STUNNED') ? '#fff' : this.color;
-            ctx.beginPath(); // 袴
+            ctx.beginPath(); 
             ctx.moveTo(-25, 45); ctx.lineTo(25, 45); ctx.lineTo(15, -10); ctx.lineTo(-15, -10); ctx.fill();
-            ctx.fillRect(-18, -35, 36, 30); // 上衣
-            ctx.fillStyle = COLOR_INK; ctx.fillRect(-20, -10, 40, 6); // 腰帶
-            ctx.fillStyle = '#f3d1b0'; ctx.fillRect(-8, -52, 16, 18); // 臉
-            ctx.fillStyle = '#7a6851'; // 斗笠
+            ctx.fillRect(-18, -35, 36, 30);
+            ctx.fillStyle = COLOR_INK; ctx.fillRect(-20, -10, 40, 6);
+            ctx.fillStyle = '#f3d1b0'; ctx.fillRect(-8, -52, 16, 18);
+            ctx.fillStyle = '#7a6851';
             ctx.beginPath(); ctx.moveTo(-40, -48); ctx.lineTo(40, -48); ctx.lineTo(0, -80); ctx.fill();
             ctx.stroke();
 
-            // 武器
+            // 武器動作
             ctx.strokeStyle = COLOR_INK; ctx.lineWidth = 3;
             if(this.state === 'ATTACK') {
                 ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(65, -15); ctx.stroke();
             } else if(this.state === 'BLOCK') {
-                ctx.strokeStyle = this.blockHits >= 4 ? 'red' : COLOR_GOLD;
+                ctx.strokeStyle = COLOR_GOLD;
                 ctx.beginPath(); ctx.moveTo(15, 20); ctx.lineTo(25, -50); ctx.stroke();
             }
             ctx.restore();
@@ -141,33 +144,32 @@
         }
 
         perform(type, target) {
-            if(this.state !== 'IDLE') return;
+            if(this.state !== 'IDLE' && this.state !== 'BLOCK') return;
             if(type === 'ATTACK') {
                 this.state = 'ATTACK'; this.timer = 18;
                 const dx = Math.abs(this.pos.x - target.pos.x);
                 const dy = Math.abs(this.pos.y - target.pos.y);
                 if(dx < 135 && dy < 45) target.getHit(12, this.facing, this.pos.x);
             } else if(type === 'DASH' && this.en >= 35) {
-                this.en -= 35; 
-                this.pos.x += this.facing * 180; // 純淨瞬移：直接改變位置
-                this.state = 'IDLE'; 
+                this.en -= 35;
+                this.pos.x += this.facing * 200; // 瞬間位移
+                this.state = 'IDLE';
             }
         }
 
         getHit(dmg, dir, attackerX) {
-            // 判斷攻擊是否來自背後
-            // 如果面對右邊(1)，但攻擊者在左邊(attackerX < this.pos.x)，則是正面。
-            // 簡單邏輯：如果 (attackerX - this.pos.x) * this.facing > 0，說明攻擊者在前方
+            // 背後判斷：如果攻擊者在背後，防禦無效
             const isFront = (attackerX > this.pos.x && this.facing === 1) || (attackerX < this.pos.x && this.facing === -1);
 
             if(this.state === 'BLOCK' && isFront) {
                 this.blockHits++; shake = 5;
                 if(this.blockHits >= 5) {
-                    this.state = 'STUNNED'; this.timer = 100; // 崩解
-                    this.blockHits = 0; shake = 20;
+                    this.state = 'STUNNED'; this.timer = 100; // 崩解狀態
+                    this.blockHits = 0; shake = 25;
+                    for(let i=0; i<15; i++) particles.push(new Particle(this.pos.x, this.pos.y-40, COLOR_INK));
                 }
             } else {
-                // 受傷（包含背後受擊或崩解狀態中）
+                // 受傷條件：1.沒格擋 2.背後受襲 3.處於崩解狀態
                 this.hp -= dmg; this.state = 'HURT'; this.timer = 15;
                 this.vel.x = dir * 15; shake = 10; hitStop = 3;
                 for(let i=0; i<10; i++) particles.push(new Particle(this.pos.x, this.pos.y-40, this.color));
@@ -188,11 +190,24 @@
 
     function mainLoop() {
         if(!gameRunning) return;
-        if(hitStop > 0) { hitStop--; requestAnimationFrame(mainLoop); return; }
-
-        ctx.fillStyle = COLOR_PAPER; ctx.fillRect(0,0,canvas.width,canvas.height);
         
-        // P1 控制
+        // 1. 強制重置透明度並清除畫布 (消除殘影的關鍵)
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = COLOR_PAPER;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if(hitStop > 0) { 
+            hitStop--; 
+            p1.draw(); ai.draw(); // 凍結時僅重繪
+            requestAnimationFrame(mainLoop); 
+            return; 
+        }
+
+        // 地面線條
+        ctx.strokeStyle = "rgba(0,0,0,0.05)";
+        for(let i=MIN_Y; i<=MAX_Y; i+=35) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+
+        // P1
         if(p1.state === 'IDLE' || p1.state === 'BLOCK') {
             if(keys['w']) p1.vel.y = -6; if(keys['s']) p1.vel.y = 6;
             if(keys['a']) { p1.vel.x = -8; p1.facing = -1; }
@@ -202,7 +217,7 @@
             if(keys['l']) p1.perform('DASH', ai);
         }
 
-        // AI 邏輯
+        // AI
         if(ai.state === 'IDLE') {
             const dx = p1.pos.x - ai.pos.x;
             const dy = p1.pos.y - ai.pos.y;
@@ -224,7 +239,7 @@
     function endGame(res) {
         gameRunning = false;
         document.getElementById('winScreen').style.display = 'flex';
-        document.getElementById('resultMsg').innerText = res === 'WIN' ? "斬！" : "敗北";
+        document.getElementById('resultMsg').innerText = res === 'WIN' ? "敵將討取！" : "敗北...";
     }
 
     window.onkeydown = e => keys[e.key.toLowerCase()] = true;
