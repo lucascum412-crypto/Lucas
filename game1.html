@@ -54,10 +54,10 @@
         <div class="title">ARCADE FIGHTER</div>
         <button class="mode-btn" onclick="initGame('single')">單人挑戰 (J/K/L 鍵可用)</button>
         <button class="mode-btn" onclick="initGame('pvp')">雙人對戰 (Local PVP)</button>
-        <a href="index.html#back" class="mode-btn exit-btn">返回遊戲中心</a>
+        <a href="javascript:backToLobby()" class="mode-btn exit-btn">返回遊戲中心</a>
     </div>
 
-    <button id="abortBtn" onclick="window.location.href='index.html#back'">中止比賽並返回大廳</button>
+    <button id="abortBtn" onclick="backToLobby()">中止比賽並返回大廳</button>
 
     <div class="ui-layer" id="gameUI">
         <div class="health-box" style="border-left: 5px solid var(--primary-color);">
@@ -80,7 +80,7 @@
     
     <div id="gameOverMenu">
         <button class="end-btn" onclick="resetToMenu()">重賽</button>
-        <a href="index.html#back" class="end-btn end-exit">回遊戲大廳</a>
+        <a href="javascript:backToLobby()" class="end-btn end-exit">回遊戲大廳</a>
     </div>
     
     <canvas id="gameCanvas" width="900" height="450"></canvas>
@@ -92,7 +92,13 @@
 </div>
 
 <script>
-    // --- 以下為你原本提供的所有邏輯，完全保留，無任何改動 ---
+    // --- 新增：返回大廳並記錄門口編號 ---
+    function backToLobby() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const gateId = urlParams.get('gate') || 0; // 抓取進來時的門號
+        window.location.href = `index.html?back=true&gate=${gateId}`;
+    }
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const keys = {};
@@ -223,6 +229,14 @@
             if (this.health <= 0) finishGame(this.id === 1 ? 2 : 1);
         }
 
+        // --- 修正點：補回原本漏掉的 triggerStun 函數 ---
+        triggerStun() {
+            this.state = 'STUNNED';
+            this.stunTimer = 120; // 暈眩時間
+            this.shieldHP = 0;
+            this.updateShieldUI();
+        }
+
         updateShieldUI() {
             const dots = document.getElementById(`p${this.id}Shield`).children;
             for(let i=0; i<5; i++) dots[i].style.opacity = (i < this.shieldHP) ? "1" : "0.1";
@@ -301,13 +315,21 @@
     }
 
     function updateLoop() {
+        // 修改：即使遊戲不活躍，只要選單沒打開就繼續畫，這樣才能看到結算畫面
         if (!gameActive && document.getElementById('mainMenu').style.display === 'flex') return;
+        
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#16213e'; 
         ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
-        if (gameActive) { handleInput(); if (p2.isAI) runAI(); }
+        
+        if (gameActive) { 
+            handleInput(); 
+            if (p2.isAI) runAI(); 
+        }
+        
         if (p1) p1.update();
         if (p2) p2.update();
+        
         requestAnimationFrame(updateLoop);
     }
 </script>
