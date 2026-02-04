@@ -3,17 +3,41 @@
 <head>
     <title>井字遊戲 - 遊戲館</title>
     <style>
-        body { background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: Arial; }
-        .board { display: grid; grid-template-columns: repeat(3, 100px); gap: 5px; margin-bottom: 20px;}
-        .cell { width: 100px; height: 100px; background: #0f3460; font-size: 2em; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 10px; }
-        .cell:hover { background: #16213e; }
-        .back-btn { padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
-        #status { font-size: 1.5em; margin-bottom: 20px; color: #e94560;}
+        :root { --cell-size: min(100px, 25vw); --gap: min(5px, 1.5vw); }
+        body { background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: Arial; touch-action: manipulation; }
+        .board { display: grid; grid-template-columns: repeat(3, var(--cell-size)); gap: var(--gap); margin-bottom: min(20px, 5vw); padding: min(10px, 2vw); }
+        .cell { width: var(--cell-size); height: var(--cell-size); background: #0f3460; font-size: clamp(2em, 6vw, 3em); display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: min(10px, 2vw); transition: transform 0.1s; }
+        .cell:hover { background: #16213e; transform: scale(0.98); }
+        .cell:active { transform: scale(0.95); }
+        .back-btn {
+            padding: min(10px, 2.5vw) min(20px, 5vw);
+            background: #e94560;
+            color: white;
+            text-decoration: none;
+            border-radius: min(5px, 1.5vw);
+            font-size: clamp(14px, 4vw, 16px);
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .back-btn:hover {
+            background: #ff2e4d;
+            transform: scale(1.05);
+        }
+        .back-btn:active {
+            transform: scale(0.95);
+        }
+        #status { font-size: clamp(1.2em, 5vw, 1.5em); margin-bottom: min(20px, 5vw); color: #e94560; text-align: center; }
+        h2 { font-size: clamp(1.5em, 6vw, 2em); margin: 0; }
     </style>
 </head>
 <body>
     <h2>❌⭕ 井字遊戲</h2>
     <div id="status">輪到 X 玩家</div>
+    <div id="highScore" style="font-size: clamp(1em, 4vw, 1.2em); color: #00f2ff; margin-bottom: 10px;">
+        最高連勝: <span id="highScoreValue">0</span>
+    </div>
     <div class="board" id="board">
         <div class="cell" onclick="makeMove(0)"></div>
         <div class="cell" onclick="makeMove(1)"></div>
@@ -25,22 +49,68 @@
         <div class="cell" onclick="makeMove(7)"></div>
         <div class="cell" onclick="makeMove(8)"></div>
     </div>
-    <button onclick="window.location.href='index.html#back'">返回大廳</button>
+    <div style="display: flex; gap: 15px; margin-top: 20px;">
+        <button class="back-btn" onclick="resetGame()">重新開始</button>
+        <button class="back-btn" onclick="window.location.href='index.html#back'">返回大廳</button>
+    </div>
 
     <script>
+        // 引入共用工具庫（如果尚未引入）
+        if (typeof GameUtils === 'undefined') {
+            console.warn('GameUtils 未載入，高分功能可能受限');
+        }
+
         let currentPlayer = 'X';
         let board = ['', '', '', '', '', '', '', '', ''];
         let gameActive = true;
+        let winStreak = 0;
+        let highScore = 0;
+
+        // 初始化高分顯示
+        function initHighScore() {
+            if (typeof GameUtils !== 'undefined') {
+                highScore = GameUtils.getHighScore('tictactoe_streak');
+            } else {
+                // 後備方案：使用 localStorage 直接讀取
+                const saved = localStorage.getItem('tictactoe_streak');
+                highScore = saved ? parseInt(saved) : 0;
+            }
+            document.getElementById('highScoreValue').textContent = highScore;
+        }
+
+        // 更新連勝紀錄
+        function updateWinStreak(isWin) {
+            if (isWin) {
+                winStreak++;
+                if (winStreak > highScore) {
+                    highScore = winStreak;
+                    document.getElementById('highScoreValue').textContent = highScore;
+                    
+                    // 保存高分
+                    if (typeof GameUtils !== 'undefined') {
+                        GameUtils.saveHighScore('tictactoe_streak', highScore);
+                        GameUtils.showNotification(`新紀錄！連勝 ${highScore} 場！`, 'success');
+                    } else {
+                        localStorage.setItem('tictactoe_streak', highScore.toString());
+                    }
+                }
+            } else {
+                // 平局或輸掉重置連勝
+                winStreak = 0;
+            }
+        }
 
         function makeMove(index) {
-            if (board[index] === '' && gameActive) {
-                board[index] = currentPlayer;
-                document.getElementsByClassName('cell')[index].innerText = currentPlayer;
-                checkWinner();
-                if(gameActive) {
-                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-                    document.getElementById('status').innerText = "輪到 " + currentPlayer + " 玩家";
-                }
+            if (!gameActive) return;
+            if (board[index] !== '') return;
+            
+            board[index] = currentPlayer;
+            document.getElementsByClassName('cell')[index].innerText = currentPlayer;
+            checkWinner();
+            
+            if(gameActive) {
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                document.getElementById('status').innerText = "輪到 " + currentPlayer + " 玩家";
             }
         }
 
@@ -54,14 +124,19 @@
             for (let condition of winConditions) {
                 const [a, b, c] = condition;
                 if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-                    document.getElementById('status').innerText = "玩家 " + board[a] + " 獲勝！";
+                    const winner = board[a];
+                    document.getElementById('status').innerText = "玩家 " + winner + " 獲勝！";
                     gameActive = false;
+                    
+                    // 更新連勝紀錄（假設 X 是玩家，O 是電腦）
+                    updateWinStreak(winner === 'X');
                     return;
                 }
             }
             if (!board.includes('')) {
                 document.getElementById('status').innerText = "平局！";
                 gameActive = false;
+                updateWinStreak(false); // 平局重置連勝
             }
         }
 
@@ -72,6 +147,11 @@
             document.querySelectorAll('.cell').forEach(cell => cell.innerText = '');
             document.getElementById('status').innerText = "輪到 X 玩家";
         }
+
+        // 頁面加載時初始化
+        window.onload = function() {
+            initHighScore();
+        };
     </script>
 </body>
 </html>

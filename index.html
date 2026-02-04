@@ -25,32 +25,55 @@
             color: white; font-size: clamp(14px, 3vw, 18px); display: none; z-index: 2000; border-radius: 50px;
         }
 
-        /* 觸控控制器 */
+        /* 觸控控制器 - 優化移動設備體驗 */
         #touchControls {
-            position: fixed; bottom: 20px; left: 20px; z-index: 1500; display: none;
+            position: fixed; bottom: 25px; left: 25px; z-index: 1500; display: none;
         }
         
         #virtualJoystick {
-            width: 120px; height: 120px; background: rgba(0, 0, 0, 0.6); border: 2px solid var(--primary);
+            width: 140px; height: 140px; background: rgba(0, 0, 0, 0.7); border: 3px solid var(--primary);
             border-radius: 50%; position: relative; touch-action: none;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
         }
         
         #joystickKnob {
-            width: 50px; height: 50px; background: var(--primary); border-radius: 50%;
+            width: 60px; height: 60px; background: var(--primary); border-radius: 50%;
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            transition: none; pointer-events: none;
+            transition: transform 0.1s; pointer-events: none;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.5);
         }
         
         #actionButton {
-            position: fixed; bottom: 40px; right: 40px; width: 80px; height: 80px;
-            background: radial-gradient(circle, var(--primary) 0%, rgba(0, 242, 255, 0.3) 100%);
+            position: fixed; bottom: 40px; right: 40px; width: 90px; height: 90px;
+            background: radial-gradient(circle, var(--primary) 0%, rgba(0, 242, 255, 0.4) 100%);
             border: 3px solid var(--primary); border-radius: 50%; color: #000;
-            font-size: 24px; font-weight: bold; display: none; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: bold; display: none; align-items: center; justify-content: center;
             z-index: 1500; touch-action: none; cursor: pointer;
+            box-shadow: 0 0 25px rgba(0, 242, 255, 0.4);
+            user-select: none;
         }
         
         #actionButton:active {
-            transform: scale(0.95); box-shadow: 0 0 40px var(--primary);
+            transform: scale(0.92); box-shadow: 0 0 50px var(--primary);
+            background: radial-gradient(circle, var(--primary) 0%, rgba(0, 242, 255, 0.7) 100%);
+        }
+        
+        /* 觸控控制提示 */
+        .touch-hint {
+            position: fixed;
+            bottom: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: var(--primary);
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            display: none;
+            z-index: 1499;
+            border: 1px solid var(--primary);
+            text-align: center;
+            max-width: 80%;
         }
 
         /* 響應式設計 */
@@ -83,7 +106,118 @@
 </div>
 <div id="actionButton">SPACE</div>
 
+<!-- 觸控控制提示 -->
+<div class="touch-hint" id="touchHint">使用搖桿移動，點擊右側按鈕互動</div>
+
+<!-- 音效控制面板 -->
+<div id="audioControls" style="position: fixed; top: 20px; right: 20px; z-index: 2000; display: none;">
+    <div style="background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 10px; border: 2px solid var(--primary); min-width: 200px;">
+        <h3 style="color: var(--primary); margin-top: 0; margin-bottom: 15px;">音效設定</h3>
+        <div style="margin-bottom: 10px;">
+            <label style="color: white; display: flex; align-items: center; justify-content: space-between;">
+                <span>音效音量</span>
+                <input type="range" id="sfxVolume" min="0" max="100" value="70" style="width: 100px;">
+            </label>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="color: white; display: flex; align-items: center; justify-content: space-between;">
+                <span>背景音樂</span>
+                <input type="checkbox" id="bgmToggle" checked>
+            </label>
+        </div>
+        <button class="btn" onclick="closeAudioControls()" style="width: 100%; padding: 8px; font-size: 14px;">關閉</button>
+    </div>
+</div>
+
+<!-- 設置按鈕 -->
+<button id="settingsBtn" class="btn" style="position: fixed; top: 20px; right: 20px; z-index: 1999; padding: 10px 15px; font-size: 14px;" onclick="toggleAudioControls()">設定</button>
+
+<!-- 統計按鈕 -->
+<button id="statsBtn" class="btn" style="position: fixed; top: 70px; right: 20px; z-index: 1999; padding: 10px 15px; font-size: 14px; background: #39ff14;" onclick="showGameStats()">統計</button>
+ 
+<!-- 引入共用工具庫 -->
+<script src="common.js"></script>
+
 <script>
+    // 音效控制功能
+    function toggleAudioControls() {
+        const controls = document.getElementById('audioControls');
+        const btn = document.getElementById('settingsBtn');
+        if (controls.style.display === 'block') {
+            controls.style.display = 'none';
+            btn.textContent = '設定';
+        } else {
+            controls.style.display = 'block';
+            btn.textContent = '關閉設定';
+            loadAudioSettings();
+        }
+    }
+    
+    function closeAudioControls() {
+        document.getElementById('audioControls').style.display = 'none';
+        document.getElementById('settingsBtn').textContent = '設定';
+        saveAudioSettings();
+    }
+    
+    function loadAudioSettings() {
+        const sfxVolume = localStorage.getItem('sfxVolume') || 70;
+        const bgmEnabled = localStorage.getItem('bgmEnabled') !== 'false'; // 默認開啟
+        
+        document.getElementById('sfxVolume').value = sfxVolume;
+        document.getElementById('bgmToggle').checked = bgmEnabled;
+    }
+    
+    function saveAudioSettings() {
+        const sfxVolume = document.getElementById('sfxVolume').value;
+        const bgmEnabled = document.getElementById('bgmToggle').checked;
+        
+        localStorage.setItem('sfxVolume', sfxVolume);
+        localStorage.setItem('bgmEnabled', bgmEnabled);
+        
+        // 應用設置到當前遊戲
+        applyAudioSettings();
+    }
+    
+    function applyAudioSettings() {
+        const sfxVolume = parseInt(localStorage.getItem('sfxVolume') || 70) / 100;
+        const bgmEnabled = localStorage.getItem('bgmEnabled') !== 'false';
+        
+        // 這裡可以將設置應用到遊戲音效
+        if (window.audioContext) {
+            // 如果有 audioContext，可以調整音量
+            console.log('音效設置已應用:', { sfxVolume, bgmEnabled });
+        }
+    }
+    
+    // 顯示遊戲統計
+    function showGameStats() {
+        if (typeof GameStats !== 'undefined') {
+            GameStats.showStatsPanel();
+        } else {
+            alert('統計功能尚未載入');
+        }
+    }
+    
+    // 全局錯誤處理
+    window.addEventListener('error', function(e) {
+        console.error('遊戲錯誤:', e.error);
+        // 可選：顯示用戶友好的錯誤訊息
+        const errorMsg = `遊戲發生錯誤: ${e.message}`;
+        if (document.getElementById('hintUI')) {
+            document.getElementById('hintUI').innerText = errorMsg;
+            document.getElementById('hintUI').style.display = 'block';
+            document.getElementById('hintUI').style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+            setTimeout(() => {
+                document.getElementById('hintUI').style.display = 'none';
+            }, 5000);
+        }
+    });
+
+    // 未捕獲的 Promise 錯誤
+    window.addEventListener('unhandledrejection', function(e) {
+        console.error('未處理的 Promise 錯誤:', e.reason);
+    });
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const hintUI = document.getElementById('hintUI');
@@ -213,6 +347,13 @@
         if (isMobile) {
             document.getElementById('touchControls').style.display = 'block';
             document.getElementById('actionButton').style.display = 'flex';
+            // 顯示觸控提示
+            const touchHint = document.getElementById('touchHint');
+            touchHint.style.display = 'block';
+            // 5秒後自動隱藏提示
+            setTimeout(() => {
+                touchHint.style.display = 'none';
+            }, 5000);
         }
     }
 

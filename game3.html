@@ -3,14 +3,38 @@
 <head>
     <title>極速點擊 - 遊戲館</title>
     <style>
-        body { background: #222; color: white; text-align: center; padding-top: 50px; font-family: Arial; }
+        :root { --click-size: min(200px, 40vw); }
+        body { background: #222; color: white; text-align: center; padding-top: min(50px, 10vh); font-family: Arial; touch-action: manipulation; }
         #clickArea { 
-            width: 200px; height: 200px; background: #e94560; border-radius: 50%; margin: 20px auto; 
-            display: flex; align-items: center; justify-content: center; font-size: 2em; cursor: pointer; user-select: none;
-            box-shadow: 0 0 15px #e94560;
+            width: var(--click-size); height: var(--click-size); background: #e94560; border-radius: 50%; margin: min(20px, 4vw) auto; 
+            display: flex; align-items: center; justify-content: center; font-size: clamp(1.5em, 5vw, 2em); cursor: pointer; user-select: none;
+            box-shadow: 0 0 min(15px, 3vw) #e94560; transition: transform 0.1s;
         }
         #clickArea:active { transform: scale(0.95); background: #ff2e4d; }
-        .back-btn { margin-top: 20px; display: inline-block; padding: 10px 20px; background: #fff; color: #222; text-decoration: none; border-radius: 5px; }
+        .back-btn {
+            margin-top: min(20px, 4vw);
+            display: inline-block;
+            padding: min(10px, 2.5vw) min(20px, 5vw);
+            background: #e94560;
+            color: white;
+            text-decoration: none;
+            border-radius: min(5px, 1.5vw);
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            font-size: clamp(14px, 4vw, 16px);
+        }
+        .back-btn:hover {
+            background: #ff2e4d;
+            transform: scale(1.05);
+        }
+        .back-btn:active {
+            transform: scale(0.95);
+        }
+        h1 { font-size: clamp(1.5em, 6vw, 2em); margin: 0; }
+        h2 { font-size: clamp(1.2em, 4vw, 1.5em); margin: min(10px, 2vw) 0; }
+        p { font-size: clamp(1em, 3.5vw, 1.2em); margin: min(5px, 1vw) 0; }
     </style>
 </head>
 <body>
@@ -18,37 +42,77 @@
     <p>你有 10 秒鐘的時間！</p>
     <h2 id="timer">時間: 10.00</h2>
     <h2 id="score">點擊次數: 0</h2>
+    <div id="statusMessage" style="display: none; color: #e94560; font-size: clamp(1em, 4vw, 1.2em); margin: 10px 0; padding: 10px; background: rgba(233, 69, 96, 0.1); border-radius: 10px;"></div>
     
     <div id="clickArea" onclick="clickBtn()">開始</div>
     <br>
-    <button onclick="window.location.href='index.html#back'">返回大廳</button>
+    <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+        <button class="back-btn" onclick="resetGame()">重新開始</button>
+        <button class="back-btn" onclick="window.location.href='index.html#back'">返回大廳</button>
+    </div>
 
     <script>
         let score = 0;
         let timeLeft = 10.00;
         let isPlaying = false;
         let timerInterval;
+        let gameOver = false;
+        let startTime;
 
         function clickBtn() {
-            if (timeLeft <= 0) return; // 時間到不能點
-
+            if (gameOver) return;
+            
             if (!isPlaying) {
                 isPlaying = true;
+                gameOver = false;
                 document.getElementById("clickArea").innerText = "點我!";
+                document.getElementById("clickArea").style.cursor = "pointer";
+                startTime = Date.now();
+                
                 timerInterval = setInterval(() => {
-                    timeLeft -= 0.01;
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    timeLeft = Math.max(0, 10.00 - elapsed);
                     document.getElementById("timer").innerText = "時間: " + timeLeft.toFixed(2);
+                    
                     if (timeLeft <= 0) {
-                        clearInterval(timerInterval);
-                        timeLeft = 0;
-                        document.getElementById("timer").innerText = "時間: 0.00";
-                        document.getElementById("clickArea").innerText = "結束";
-                        alert("時間到！你的手速是 " + score + " 次！");
+                        endGame();
                     }
-                }, 10);
+                }, 16); // ~60fps
             }
-            score++;
-            document.getElementById("score").innerText = "點擊次數: " + score;
+            
+            if (timeLeft > 0) {
+                score++;
+                document.getElementById("score").innerText = "點擊次數: " + score;
+            }
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            gameOver = true;
+            isPlaying = false;
+            timeLeft = 0;
+            document.getElementById("timer").innerText = "時間: 0.00";
+            document.getElementById("clickArea").innerText = "結束";
+            document.getElementById("clickArea").style.cursor = "not-allowed";
+            
+            // 使用更友好的方式顯示結果，而不是 alert
+            setTimeout(() => {
+                document.getElementById("statusMessage").innerText = `時間到！你的手速是 ${score} 次！`;
+                document.getElementById("statusMessage").style.display = "block";
+            }, 100);
+        }
+
+        function resetGame() {
+            clearInterval(timerInterval);
+            score = 0;
+            timeLeft = 10.00;
+            isPlaying = false;
+            gameOver = false;
+            document.getElementById("score").innerText = "點擊次數: 0";
+            document.getElementById("timer").innerText = "時間: 10.00";
+            document.getElementById("clickArea").innerText = "開始";
+            document.getElementById("clickArea").style.cursor = "pointer";
+            document.getElementById("statusMessage").style.display = "none";
         }
     </script>
 </body>

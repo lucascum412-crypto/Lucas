@@ -19,9 +19,21 @@
             justify-content: center; 
             height: 100vh;
             font-family: 'Segoe UI', sans-serif;
+            touch-action: none;
+            padding: min(20px, 3vw);
         }
-        #game-container { position: relative; border: 4px solid #333; box-shadow: 0 0 20px rgba(0, 242, 255, 0.2); }
-        canvas { background: #000; display: block; }
+        #game-container { 
+            position: relative; 
+            border: min(4px, 0.8vw) solid #333; 
+            box-shadow: 0 0 min(20px, 4vw) rgba(0, 242, 255, 0.2); 
+            margin-bottom: min(20px, 4vw);
+        }
+        canvas { 
+            background: #000; 
+            display: block; 
+            max-width: 90vw;
+            max-height: 60vh;
+        }
         .side-panel {
             position: absolute; left: 105%; top: 0; width: 150px; text-align: left;
             background: rgba(26, 26, 46, 0.8); padding: 15px; border-radius: 10px; border: 1px solid #444;
@@ -29,8 +41,56 @@
         .stat { font-size: 1.2rem; color: var(--primary); margin-bottom: 10px; }
         .controls-hint { font-size: 0.8rem; color: #888; margin-top: 20px; }
         .back-btn {
-            margin-top: 20px; padding: 10px 30px; background: #e94560;
-            color: white; text-decoration: none; border-radius: 50px; font-weight: bold;
+            margin-top: min(20px, 4vw); 
+            padding: min(10px, 2.5vw) min(30px, 6vw); 
+            background: #e94560;
+            color: white; text-decoration: none; 
+            border-radius: clamp(25px, 5vw, 50px); 
+            font-weight: bold;
+            font-size: clamp(14px, 3.5vw, 16px);
+        }
+        
+        /* 觸控控制 */
+        .touch-controls {
+            position: fixed;
+            bottom: min(30px, 5vw);
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: min(15px, 3vw);
+            z-index: 1000;
+        }
+        
+        .touch-btn {
+            width: min(60px, 12vw);
+            height: min(60px, 12vw);
+            background: rgba(0, 242, 255, 0.2);
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            color: var(--primary);
+            font-size: clamp(18px, 4vw, 24px);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .touch-btn:active {
+            background: rgba(0, 242, 255, 0.4);
+            transform: scale(0.9);
+        }
+        
+        .touch-controls-row {
+            display: flex;
+            gap: min(15px, 3vw);
+            align-items: center;
+        }
+        
+        @media (max-width: 768px) {
+            .touch-controls { display: flex; flex-direction: column; }
+            .side-panel { display: none; }
         }
     </style>
 </head>
@@ -53,6 +113,18 @@
     </div>
 
     <button onclick="window.location.href='index.html#back'">返回大廳</button>
+    
+    <!-- 觸控控制 -->
+    <div class="touch-controls">
+        <div class="touch-controls-row">
+            <div class="touch-btn" id="rotateBtn">↻</div>
+        </div>
+        <div class="touch-controls-row">
+            <div class="touch-btn" id="leftBtn">←</div>
+            <div class="touch-btn" id="downBtn">↓</div>
+            <div class="touch-btn" id="rightBtn">→</div>
+        </div>
+    </div>
 
     <script>
         const canvas = document.getElementById('tetris');
@@ -210,6 +282,94 @@
                 if (collide(arena, player)) rotate(player.matrix, -1);
             }
         });
+        
+        // 觸控控制
+        function setupTouchControls() {
+            const rotateBtn = document.getElementById('rotateBtn');
+            const leftBtn = document.getElementById('leftBtn');
+            const rightBtn = document.getElementById('rightBtn');
+            const downBtn = document.getElementById('downBtn');
+            
+            // 旋轉按鈕
+            rotateBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                rotate(player.matrix, 1);
+                if (collide(arena, player)) rotate(player.matrix, -1);
+            });
+            
+            rotateBtn.addEventListener('click', () => {
+                rotate(player.matrix, 1);
+                if (collide(arena, player)) rotate(player.matrix, -1);
+            });
+            
+            // 左移按鈕
+            leftBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                playerMove(-1);
+            });
+            
+            leftBtn.addEventListener('click', () => playerMove(-1));
+            
+            // 右移按鈕
+            rightBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                playerMove(1);
+            });
+            
+            rightBtn.addEventListener('click', () => playerMove(1));
+            
+            // 下移按鈕
+            downBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                playerDrop();
+            });
+            
+            downBtn.addEventListener('click', () => playerDrop());
+            
+            // 滑動控制
+            let touchStartX = null;
+            let touchStartY = null;
+            
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (touchStartX === null || touchStartY === null) return;
+                
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                const deltaX = touchX - touchStartX;
+                const deltaY = touchY - touchStartY;
+                
+                // 水平滑動控制左右移動
+                if (Math.abs(deltaX) > 30) {
+                    if (deltaX > 0) playerMove(1);
+                    else playerMove(-1);
+                    touchStartX = touchX;
+                }
+                
+                // 垂直下滑加速下落
+                if (deltaY > 50) {
+                    playerDrop();
+                    touchStartY = touchY;
+                }
+            });
+            
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                touchStartX = null;
+                touchStartY = null;
+            });
+        }
+        
+        // 初始化觸控控制
+        if (window.innerWidth <= 768) {
+            setupTouchControls();
+        }
 
         playerReset();
         updateScore();

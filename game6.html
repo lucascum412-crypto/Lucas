@@ -4,22 +4,125 @@
     <meta charset="UTF-8">
     <title>猜數字 - 遊戲館</title>
     <style>
-        body { background: #1a1a2e; color: white; text-align: center; font-family: Arial; padding-top: 100px; }
-        input { padding: 10px; font-size: 1.2em; border-radius: 5px; border: none; width: 100px; text-align: center; }
-        button { padding: 10px 20px; font-size: 1em; background: #00f2ff; border: none; border-radius: 5px; cursor: pointer; }
-        #msg { margin-top: 20px; font-size: 1.5em; color: #e94560; }
-        .back-btn { margin-top: 30px; display: inline-block; padding: 10px 20px; background: #e94560; color: white; text-decoration: none; border-radius: 5px; }
+        :root { --primary: #00f2ff; --danger: #e94560; }
+        body { 
+            background: #1a1a2e; 
+            color: white; 
+            text-align: center; 
+            font-family: Arial; 
+            padding-top: min(100px, 15vh); 
+            padding: min(20px, 4vh) min(20px, 4vw); 
+            touch-action: manipulation;
+        }
+        .game-container {
+            max-width: 100%;
+            padding: min(20px, 4vw);
+        }
+        h2 { 
+            font-size: clamp(1.5em, 5vw, 2em); 
+            margin: 0 0 min(20px, 4vw) 0; 
+        }
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: min(10px, 2vw);
+            margin: min(20px, 4vw) 0;
+            flex-wrap: wrap;
+        }
+        input { 
+            padding: clamp(8px, 2vw, 10px); 
+            font-size: clamp(1em, 4vw, 1.2em); 
+            border-radius: min(5px, 1vw); 
+            border: none; 
+            width: min(150px, 30vw); 
+            text-align: center; 
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        button { 
+            padding: clamp(10px, 2.5vw, 20px) clamp(15px, 3vw, 30px); 
+            font-size: clamp(0.9em, 3.5vw, 1em); 
+            background: var(--primary); 
+            border: none; 
+            border-radius: min(5px, 1vw); 
+            cursor: pointer; 
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        #msg { 
+            margin-top: min(20px, 4vw); 
+            font-size: clamp(1.2em, 4.5vw, 1.5em); 
+            color: var(--danger); 
+            min-height: min(30px, 5vh);
+        }
+        .back-btn { 
+            margin-top: min(30px, 6vw); 
+            display: inline-block; 
+            padding: clamp(10px, 2.5vw, 20px) clamp(15px, 3vw, 30px); 
+            background: var(--danger); 
+            color: white; 
+            text-decoration: none; 
+            border-radius: min(5px, 1vw); 
+            font-weight: bold;
+        }
+        .quick-numbers {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: min(8px, 1.5vw);
+            max-width: min(300px, 80vw);
+            margin: min(20px, 4vw) auto;
+        }
+        .quick-btn {
+            padding: clamp(8px, 2vw, 12px);
+            font-size: clamp(0.9em, 3vw, 1em);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: min(5px, 1vw);
+        }
+        .quick-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
 <body>
-    <h2>🔢 猜數字挑戰 (1-100)</h2>
-    <input type="number" id="numInp" placeholder="數字">
-    <button onclick="guess()">猜！</button>
-    <div id="msg">來試試手氣吧！</div>
-    <button onclick="window.location.href='index.html#back'">返回大廳</button>
+    <div class="game-container">
+        <h2>🔢 猜數字挑戰 (1-100)</h2>
+        
+        <div class="input-group">
+            <input type="number" id="numInp" placeholder="數字" min="1" max="100">
+            <button onclick="guess()">猜！</button>
+        </div>
+        
+        <div class="quick-numbers">
+            <button class="quick-btn" onclick="quickGuess(25)">25</button>
+            <button class="quick-btn" onclick="quickGuess(50)">50</button>
+            <button class="quick-btn" onclick="quickGuess(75)">75</button>
+            <button class="quick-btn" onclick="quickGuess(10)">10</button>
+            <button class="quick-btn" onclick="quickGuess(90)">90</button>
+            <button class="quick-btn" onclick="quickGuess(35)">35</button>
+            <button class="quick-btn" onclick="quickGuess(65)">65</button>
+            <button class="quick-btn" onclick="quickGuess(15)">15</button>
+            <button class="quick-btn" onclick="quickGuess(85)">85</button>
+            <button class="quick-btn" onclick="quickGuess(45)">45</button>
+        </div>
+        
+        <div id="msg">來試試手氣吧！</div>
+        <button class="back-btn" onclick="window.location.href='index.html#back'">返回大廳</button>
+    </div>
     <script>
         let target = Math.floor(Math.random() * 100) + 1;
         let count = 0;
+        
+        function quickGuess(num) {
+            document.getElementById('numInp').value = num;
+            guess();
+        }
+        
         function guess() {
             let val = document.getElementById('numInp').value;
             let m = document.getElementById('msg');
@@ -29,6 +132,13 @@
             else m.innerText = "太小了！再大一點";
             document.getElementById('numInp').value = "";
         }
+        
+        // 支援 Enter 鍵提交
+        document.getElementById('numInp').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                guess();
+            }
+        });
     </script>
 </body>
 </html>

@@ -8,9 +8,31 @@
             --bg: #0d0c0a; --p1-color: #8b0000; --ai-color: #2f4f4f;
             --gold: #d4af37; --paper: #e6dccd; --ink: #1a1a1a;
         }
-        body { margin: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; font-family: serif; overflow: hidden; }
-        #gameContainer { position: relative; border: 8px double var(--ink); background: var(--paper); overflow: hidden; }
-        canvas { display: block; }
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            font-family: serif; 
+            overflow: hidden; 
+            touch-action: none;
+            padding: min(20px, 3vw);
+        }
+        #gameContainer { 
+            position: relative; 
+            border: min(8px, 1.5vw) double var(--ink); 
+            background: var(--paper); 
+            overflow: hidden; 
+            max-width: 95vw;
+            max-height: 80vh;
+        }
+        canvas { 
+            display: block; 
+            max-width: 100%;
+            max-height: 100%;
+        }
         
         /* UI 系統 */
         .hud { position: absolute; top: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 50px; box-sizing: border-box; pointer-events: none; z-index: 10; }
@@ -24,12 +46,133 @@
 
         #overlay, #winScreen { position: absolute; inset: 0; background: var(--paper); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         .btn-group { display: flex; flex-direction: column; gap: 10px; width: 220px; }
-        .btn { padding: 12px; background: var(--ink); color: var(--paper); border: 1px solid var(--gold); cursor: pointer; font-size: 18px; letter-spacing: 5px; font-weight: bold; }
+        .btn { 
+            padding: clamp(10px, 2.5vw, 12px); 
+            background: var(--ink); 
+            color: var(--paper); 
+            border: 1px solid var(--gold); 
+            cursor: pointer; 
+            font-size: clamp(14px, 3.5vw, 18px); 
+            letter-spacing: clamp(3px, 1vw, 5px); 
+            font-weight: bold; 
+            transition: transform 0.1s;
+        }
         .btn:hover { background: var(--gold); color: var(--ink); }
-        .btn-diff { font-size: 14px; letter-spacing: 2px; }
+        .btn:active { transform: scale(0.95); }
+        .btn-diff { font-size: clamp(12px, 3vw, 14px); letter-spacing: clamp(2px, 0.8vw, 2px); }
         
         .difficulty-indicator { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--ink); letter-spacing: 5px; opacity: 0.5; }
-        .hint { position: absolute; bottom: 20px; color: var(--ink); font-size: 12px; }
+        .hint { 
+            position: absolute; 
+            bottom: min(20px, 4vw); 
+            color: var(--ink); 
+            font-size: clamp(10px, 2.5vw, 12px); 
+        }
+        
+        /* 觸控控制 */
+        .touch-controls {
+            position: fixed;
+            bottom: min(30px, 5vw);
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: min(15px, 3vw);
+            z-index: 1000;
+        }
+        
+        .touch-btn {
+            width: min(50px, 10vw);
+            height: min(50px, 10vw);
+            background: rgba(139, 0, 0, 0.3);
+            border: 2px solid var(--p1-color);
+            border-radius: 50%;
+            color: var(--paper);
+            font-size: clamp(12px, 3vw, 16px);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .touch-btn:active {
+            background: rgba(139, 0, 0, 0.6);
+            transform: scale(0.9);
+        }
+        
+        .touch-controls-row {
+            display: flex;
+            gap: min(10px, 2vw);
+            align-items: center;
+        }
+        
+        .move-controls {
+            position: fixed;
+            left: min(30px, 5vw);
+            bottom: min(30px, 5vw);
+            display: none;
+            z-index: 1000;
+        }
+        
+        .dpad {
+            position: relative;
+            width: min(120px, 20vw);
+            height: min(120px, 20vw);
+        }
+        
+        .dpad-btn {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--ink);
+            color: var(--paper);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .dpad-btn:active {
+            background: rgba(0, 0, 0, 0.8);
+        }
+        
+        .dpad-up {
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(40px, 8vw);
+            height: min(40px, 8vw);
+        }
+        
+        .dpad-down {
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(40px, 8vw);
+            height: min(40px, 8vw);
+        }
+        
+        .dpad-left {
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: min(40px, 8vw);
+            height: min(40px, 8vw);
+        }
+        
+        .dpad-right {
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: min(40px, 8vw);
+            height: min(40px, 8vw);
+        }
+        
+        @media (max-width: 768px) {
+            .touch-controls, .move-controls { display: block; }
+            .hint { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -70,6 +213,24 @@
 
     <canvas id="stage" width="1000" height="500"></canvas>
     <div class="hint">背後不設防 | 劍聖難度下 AI 會進行瞬移繞背</div>
+    
+    <!-- 觸控控制 -->
+    <div class="touch-controls">
+        <div class="touch-controls-row">
+            <div class="touch-btn" id="attackBtn">攻</div>
+            <div class="touch-btn" id="blockBtn">防</div>
+            <div class="touch-btn" id="dashBtn">衝</div>
+        </div>
+    </div>
+    
+    <div class="move-controls">
+        <div class="dpad">
+            <div class="dpad-btn dpad-up" id="upBtn">↑</div>
+            <div class="dpad-btn dpad-down" id="downBtn">↓</div>
+            <div class="dpad-btn dpad-left" id="leftBtn">←</div>
+            <div class="dpad-btn dpad-right" id="rightBtn">→</div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -240,6 +401,143 @@
 
     window.onkeydown = e => keys[e.key.toLowerCase()] = true;
     window.onkeyup = e => keys[e.key.toLowerCase()] = false;
+    
+    // 觸控控制
+    function setupTouchControls() {
+        const attackBtn = document.getElementById('attackBtn');
+        const blockBtn = document.getElementById('blockBtn');
+        const dashBtn = document.getElementById('dashBtn');
+        const upBtn = document.getElementById('upBtn');
+        const downBtn = document.getElementById('downBtn');
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        
+        // 攻擊按鈕
+        attackBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['j'] = true;
+        });
+        
+        attackBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys['j'] = false;
+        });
+        
+        // 防禦按鈕
+        blockBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['k'] = true;
+        });
+        
+        blockBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys['k'] = false;
+        });
+        
+        // 衝刺按鈕
+        dashBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['l'] = true;
+        });
+        
+        dashBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys['l'] = false;
+        });
+        
+        // 方向按鈕
+        upBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['w'] = true;
+        });
+        
+        upBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys['w'] = false;
+        });
+        
+        downBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['s'] = true;
+        });
+        
+        downBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys['s'] = false;
+        });
+        
+        leftBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['a'] = true;
+        });
+        
+        leftBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys['a'] = false;
+        });
+        
+        rightBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys['d'] = true;
+        });
+        
+        rightBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys['d'] = false;
+        });
+        
+        // 滑動控制
+        let touchStartX = null;
+        let touchStartY = null;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (touchStartX === null || touchStartY === null) return;
+            
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const deltaX = touchX - touchStartX;
+            const deltaY = touchY - touchStartY;
+            
+            // 重置所有方向鍵
+            keys['w'] = false;
+            keys['s'] = false;
+            keys['a'] = false;
+            keys['d'] = false;
+            
+            // 根據滑動方向設置移動
+            if (Math.abs(deltaX) > 20) {
+                if (deltaX > 0) keys['d'] = true;
+                else keys['a'] = true;
+            }
+            
+            if (Math.abs(deltaY) > 20) {
+                if (deltaY > 0) keys['s'] = true;
+                else keys['w'] = true;
+            }
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchStartX = null;
+            touchStartY = null;
+            keys['w'] = false;
+            keys['s'] = false;
+            keys['a'] = false;
+            keys['d'] = false;
+        });
+    }
+    
+    // 初始化觸控控制
+    if (window.innerWidth <= 768) {
+        setupTouchControls();
+    }
 </script>
 </body>
 </html>

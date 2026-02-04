@@ -4,16 +4,88 @@
     <meta charset="UTF-8">
     <title>記憶翻牌進化版 - 遊戲館</title>
     <style>
-        :root { --primary: #00f2ff; --bg: #0d0d1a; --danger: #e94560; }
-        body { background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: Arial; }
-        .stats { margin-bottom: 15px; font-size: 1.2em; color: var(--primary); font-weight: bold; }
-        .memory-game { display: flex; flex-wrap: wrap; perspective: 1000px; margin: 0 auto; }
-        .card { width: 80px; height: 80px; margin: 5px; position: relative; transform-style: preserve-3d; transition: transform .5s; cursor: pointer; }
+        :root { 
+            --primary: #00f2ff; 
+            --bg: #0d0d1a; 
+            --danger: #e94560; 
+            --card-size: min(80px, 15vw);
+            --card-margin: min(5px, 1.5vw);
+        }
+        body { 
+            background: var(--bg); 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            font-family: Arial; 
+            touch-action: manipulation;
+            padding: min(10px, 2vw);
+        }
+        .stats { 
+            margin-bottom: min(15px, 3vw); 
+            font-size: clamp(1em, 4vw, 1.2em); 
+            color: var(--primary); 
+            font-weight: bold; 
+        }
+        .memory-game { 
+            display: flex; 
+            flex-wrap: wrap; 
+            perspective: 1000px; 
+            margin: 0 auto; 
+            max-width: 100%;
+            justify-content: center;
+        }
+        .card { 
+            width: var(--card-size); 
+            height: var(--card-size); 
+            margin: var(--card-margin); 
+            position: relative; 
+            transform-style: preserve-3d; 
+            transition: transform .5s; 
+            cursor: pointer; 
+        }
         .card.flip { transform: rotateY(180deg); }
-        .front, .back { width: 100%; height: 100%; position: absolute; border-radius: 8px; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid var(--primary); box-sizing: border-box; }
-        .front { background: #fff; transform: rotateY(180deg); font-size: 2em; }
-        .back { background: #16213e; color: var(--danger); font-size: 1.5em; font-weight: bold; }
-        .back-btn { margin-top: 30px; padding: 10px 25px; background: var(--danger); color: white; text-decoration: none; border-radius: 50px; font-weight: bold; }
+        .card:active { transform: rotateY(180deg) scale(0.95); }
+        .front, .back { 
+            width: 100%; 
+            height: 100%; 
+            position: absolute; 
+            border-radius: min(8px, 1.5vw); 
+            backface-visibility: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border: 2px solid var(--primary); 
+            box-sizing: border-box; 
+        }
+        .front { 
+            background: #fff; 
+            transform: rotateY(180deg); 
+            font-size: clamp(1.5em, 5vw, 2em); 
+        }
+        .back { 
+            background: #16213e; 
+            color: var(--danger); 
+            font-size: clamp(1em, 4vw, 1.5em); 
+            font-weight: bold; 
+        }
+        .back-btn { 
+            margin-top: min(30px, 6vw); 
+            padding: min(10px, 2.5vw) min(25px, 5vw); 
+            background: var(--danger); 
+            color: white; 
+            text-decoration: none; 
+            border-radius: clamp(25px, 5vw, 50px); 
+            font-weight: bold; 
+            font-size: clamp(14px, 3.5vw, 16px);
+        }
+        
+        @media (max-width: 480px) {
+            .memory-game { max-width: 95vw; }
+        }
     </style>
 </head>
 <body>
