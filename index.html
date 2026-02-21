@@ -37,6 +37,15 @@
 
     <!-- 主要內容 -->
     <main class="container">
+        <!-- 遊戲列表區塊 -->
+        <div class="game-list-section">
+            <h2><i class="fas fa-list"></i> 我的遊戲檔案列表</h2>
+            <p>以下是所有可遊玩的遊戲檔案：</p>
+            <div class="file-list" id="fileList">
+                <!-- 遊戲檔案列表將由 JavaScript 動態生成 -->
+            </div>
+        </div>
+
         <div class="intro-section">
             <h2><i class="fas fa-star"></i> 精選遊戲推薦</h2>
             <p>所有遊戲均支援移動設備，並具有自動保存功能。點擊卡片開始遊玩！</p>
@@ -225,9 +234,32 @@
         // 初始化頁面
         document.addEventListener('DOMContentLoaded', function() {
             renderGameCards();
+            renderFileList();
             updateStats();
             setupEventListeners();
         });
+
+        // 渲染遊戲檔案列表
+        function renderFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            games.forEach(game => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <div class="file-icon">${game.icon}</div>
+                    <div class="file-info">
+                        <div class="file-name">${game.file}</div>
+                        <div class="file-desc">${game.name} - ${game.description}</div>
+                    </div>
+                    <a href="${game.file}" class="file-link" title="直接開啟遊戲">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
 
         // 渲染遊戲卡片
         function renderGameCards() {
@@ -370,6 +402,85 @@
         
         .stat-item i {
             color: var(--primary-color);
+        }
+        
+        .game-list-section {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .game-list-section h2 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .game-list-section p {
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+        
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary-color);
+            transform: translateX(5px);
+        }
+        
+        .file-icon {
+            font-size: 1.5em;
+            margin-right: 15px;
+            width: 40px;
+            text-align: center;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-family: 'Courier New', monospace;
+            color: var(--primary-color);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .file-desc {
+            color: var(--text-muted);
+            font-size: 0.9em;
+        }
+        
+        .file-link {
+            color: var(--text-muted);
+            font-size: 1.2em;
+            padding: 8px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .file-link:hover {
+            color: var(--primary-color);
+            background: rgba(0, 242, 255, 0.1);
         }
         
         .intro-section {
