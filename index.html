@@ -2,633 +2,599 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy Hub - Auto Return Edition</title>
-    <style>
-        :root { --bg: #020205; --primary: #00f2ff; }
-        body, html { margin: 0; padding: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; touch-action: none; }
-        
-        /* 歡迎介面 */
-        #welcomeOverlay {
-            position: fixed; inset: 0; background: radial-gradient(circle, #0a0a25 0%, #000 100%);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
-        }
-
-        .btn { 
-            padding: 15px 50px; font-size: clamp(16px, 4vw, 20px); background: transparent; border: 2px solid var(--primary);
-            color: var(--primary); cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold;
-        }
-        .btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 30px var(--primary); }
-
-        #hintUI {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            padding: 12px 40px; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--primary);
-            color: white; font-size: clamp(14px, 3vw, 18px); display: none; z-index: 2000; border-radius: 50px;
-        }
-
-        /* 觸控控制器 - 優化移動設備體驗 */
-        #touchControls {
-            position: fixed; bottom: 25px; left: 25px; z-index: 1500; display: none;
-        }
-        
-        #virtualJoystick {
-            width: 140px; height: 140px; background: rgba(0, 0, 0, 0.7); border: 3px solid var(--primary);
-            border-radius: 50%; position: relative; touch-action: none;
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
-        }
-        
-        #joystickKnob {
-            width: 60px; height: 60px; background: var(--primary); border-radius: 50%;
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            transition: transform 0.1s; pointer-events: none;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.5);
-        }
-        
-        #actionButton {
-            position: fixed; bottom: 40px; right: 40px; width: 90px; height: 90px;
-            background: radial-gradient(circle, var(--primary) 0%, rgba(0, 242, 255, 0.4) 100%);
-            border: 3px solid var(--primary); border-radius: 50%; color: #000;
-            font-size: 18px; font-weight: bold; display: none; align-items: center; justify-content: center;
-            z-index: 1500; touch-action: none; cursor: pointer;
-            box-shadow: 0 0 25px rgba(0, 242, 255, 0.4);
-            user-select: none;
-        }
-        
-        #actionButton:active {
-            transform: scale(0.92); box-shadow: 0 0 50px var(--primary);
-            background: radial-gradient(circle, var(--primary) 0%, rgba(0, 242, 255, 0.7) 100%);
-        }
-        
-        /* 觸控控制提示 */
-        .touch-hint {
-            position: fixed;
-            bottom: 180px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: var(--primary);
-            padding: 12px 25px;
-            border-radius: 25px;
-            font-size: 16px;
-            display: none;
-            z-index: 1499;
-            border: 1px solid var(--primary);
-            text-align: center;
-            max-width: 80%;
-        }
-
-        /* 響應式設計 */
-        @media (max-width: 768px) {
-            #touchControls, #actionButton { display: block; }
-            #hintUI { bottom: 120px; font-size: 14px; padding: 10px 20px; }
-        }
-        
-        @media (hover: none) {
-            #touchControls, #actionButton { display: block; }
-            #hintUI { bottom: 120px; }
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucas's Game Center - 遊戲中心</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- 背景裝飾 -->
+    <div class="bg-overlay"></div>
 
-<div id="welcomeOverlay">
-    <h1 style="color: white; font-size: clamp(30px, 8vw, 50px); letter-spacing: clamp(5px, 2vw, 15px);">GALAXY HUB</h1>
-    <button class="btn" onclick="initGame()">ENTER SYSTEM</button>
-</div>
+    <!-- 主題切換按鈕 -->
+    <button id="themeToggle" class="theme-toggle" onclick="ThemeManager.toggleTheme()" title="切換主題">
+        🌙
+    </button>
 
-<div id="hintUI">PRESS <b style="color:var(--primary)" id="actionKey">[SPACE]</b> TO ENTER <span id="gameName"></span></div>
-<canvas id="gameCanvas"></canvas>
+    <!-- 語言切換按鈕 -->
+    <button id="languageToggle" class="language-toggle" onclick="LanguageManager.toggleLanguage()" title="切換語言">
+        中文
+    </button>
 
-<!-- 觸控控制器 -->
-<div id="touchControls">
-    <div id="virtualJoystick">
-        <div id="joystickKnob"></div>
-    </div>
-</div>
-<div id="actionButton">SPACE</div>
-
-<!-- 觸控控制提示 -->
-<div class="touch-hint" id="touchHint">使用搖桿移動，點擊右側按鈕互動</div>
-
-<!-- 音效控制面板 -->
-<div id="audioControls" style="position: fixed; top: 20px; right: 20px; z-index: 2000; display: none;">
-    <div style="background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 10px; border: 2px solid var(--primary); min-width: 200px;">
-        <h3 style="color: var(--primary); margin-top: 0; margin-bottom: 15px;">音效設定</h3>
-        <div style="margin-bottom: 10px;">
-            <label style="color: white; display: flex; align-items: center; justify-content: space-between;">
-                <span>音效音量</span>
-                <input type="range" id="sfxVolume" min="0" max="100" value="70" style="width: 100px;">
-            </label>
+    <!-- 頁首 -->
+    <header>
+        <h1 data-i18n="welcome">歡迎來到遊戲中心</h1>
+        <p class="subtitle">探索 8 款精彩遊戲，挑戰你的技巧與反應！</p>
+        <div class="header-stats">
+            <span class="stat-item"><i class="fas fa-gamepad"></i> <span id="totalGames">8</span> 款遊戲</span>
+            <span class="stat-item"><i class="fas fa-trophy"></i> <span id="totalHighScores">0</span> 項最高分</span>
+            <span class="stat-item"><i class="fas fa-clock"></i> <span id="totalPlayTime">0</span> 分鐘遊玩</span>
         </div>
-        <div style="margin-bottom: 15px;">
-            <label style="color: white; display: flex; align-items: center; justify-content: space-between;">
-                <span>背景音樂</span>
-                <input type="checkbox" id="bgmToggle" checked>
-            </label>
+    </header>
+
+    <!-- 主要內容 -->
+    <main class="container">
+        <div class="intro-section">
+            <h2><i class="fas fa-star"></i> 精選遊戲推薦</h2>
+            <p>所有遊戲均支援移動設備，並具有自動保存功能。點擊卡片開始遊玩！</p>
         </div>
-        <button class="btn" onclick="closeAudioControls()" style="width: 100%; padding: 8px; font-size: 14px;">關閉</button>
-    </div>
-</div>
 
-<!-- 設置按鈕 -->
-<button id="settingsBtn" class="btn" style="position: fixed; top: 20px; right: 20px; z-index: 1999; padding: 10px 15px; font-size: 14px;" onclick="toggleAudioControls()">設定</button>
+        <!-- 遊戲卡片網格 -->
+        <div class="game-grid" id="gameGrid">
+            <!-- 遊戲卡片將由 JavaScript 動態生成 -->
+        </div>
 
-<!-- 統計按鈕 -->
-<button id="statsBtn" class="btn" style="position: fixed; top: 70px; right: 20px; z-index: 1999; padding: 10px 15px; font-size: 14px; background: #39ff14;" onclick="showGameStats()">統計</button>
- 
-<!-- 引入共用工具庫 -->
-<script src="common.js"></script>
+        <!-- 功能介紹 -->
+        <div class="features-section">
+            <h2><i class="fas fa-cogs"></i> 特色功能</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-moon"></i>
+                    </div>
+                    <h3>主題切換</h3>
+                    <p>支援黑暗/明亮模式，可根據喜好或環境光線自動調整</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-language"></i>
+                    </div>
+                    <h3>多語言支援</h3>
+                    <p>繁體中文與英文介面，一鍵切換語言</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>遊戲統計</h3>
+                    <p>追蹤遊玩時間、最高分與遊戲進度</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3>響應式設計</h3>
+                    <p>完美適配桌面、平板與手機設備</p>
+                </div>
+            </div>
+        </div>
+    </main>
 
-<script>
-    // 音效控制功能
-    function toggleAudioControls() {
-        const controls = document.getElementById('audioControls');
-        const btn = document.getElementById('settingsBtn');
-        if (controls.style.display === 'block') {
-            controls.style.display = 'none';
-            btn.textContent = '設定';
-        } else {
-            controls.style.display = 'block';
-            btn.textContent = '關閉設定';
-            loadAudioSettings();
-        }
-    }
-    
-    function closeAudioControls() {
-        document.getElementById('audioControls').style.display = 'none';
-        document.getElementById('settingsBtn').textContent = '設定';
-        saveAudioSettings();
-    }
-    
-    function loadAudioSettings() {
-        const sfxVolume = localStorage.getItem('sfxVolume') || 70;
-        const bgmEnabled = localStorage.getItem('bgmEnabled') !== 'false'; // 默認開啟
-        
-        document.getElementById('sfxVolume').value = sfxVolume;
-        document.getElementById('bgmToggle').checked = bgmEnabled;
-    }
-    
-    function saveAudioSettings() {
-        const sfxVolume = document.getElementById('sfxVolume').value;
-        const bgmEnabled = document.getElementById('bgmToggle').checked;
-        
-        localStorage.setItem('sfxVolume', sfxVolume);
-        localStorage.setItem('bgmEnabled', bgmEnabled);
-        
-        // 應用設置到當前遊戲
-        applyAudioSettings();
-    }
-    
-    function applyAudioSettings() {
-        const sfxVolume = parseInt(localStorage.getItem('sfxVolume') || 70) / 100;
-        const bgmEnabled = localStorage.getItem('bgmEnabled') !== 'false';
-        
-        // 這裡可以將設置應用到遊戲音效
-        if (window.audioContext) {
-            // 如果有 audioContext，可以調整音量
-            console.log('音效設置已應用:', { sfxVolume, bgmEnabled });
-        }
-    }
-    
-    // 顯示遊戲統計
-    function showGameStats() {
-        if (typeof GameStats !== 'undefined') {
-            GameStats.showStatsPanel();
-        } else {
-            alert('統計功能尚未載入');
-        }
-    }
-    
-    // 全局錯誤處理
-    window.addEventListener('error', function(e) {
-        console.error('遊戲錯誤:', e.error);
-        // 可選：顯示用戶友好的錯誤訊息
-        const errorMsg = `遊戲發生錯誤: ${e.message}`;
-        if (document.getElementById('hintUI')) {
-            document.getElementById('hintUI').innerText = errorMsg;
-            document.getElementById('hintUI').style.display = 'block';
-            document.getElementById('hintUI').style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
-            setTimeout(() => {
-                document.getElementById('hintUI').style.display = 'none';
-            }, 5000);
-        }
-    });
+    <!-- 頁尾 -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Lucas's Game Center</h3>
+                <p>© 2026 遊戲中心 | 所有遊戲均為原創作品</p>
+                <p>設計與開發：Lucas | 聯絡方式：example@email.com</p>
+            </div>
+            <div class="footer-section">
+                <h3>快速連結</h3>
+                <ul>
+                    <li><a href="#" onclick="showGameStats()"><i class="fas fa-chart-bar"></i> 遊戲統計</a></li>
+                    <li><a href="#" onclick="resetAllScores()"><i class="fas fa-redo"></i> 重置分數</a></li>
+                    <li><a href="#" onclick="toggleAudioSettings()"><i class="fas fa-volume-up"></i> 音效設定</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>技術資訊</h3>
+                <p>使用 HTML5, CSS3, JavaScript 開發</p>
+                <p>本地儲存：localStorage</p>
+                <p>版本：2.0.0</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>感謝遊玩！更多遊戲開發中...</p>
+        </div>
+    </footer>
 
-    // 未捕獲的 Promise 錯誤
-    window.addEventListener('unhandledrejection', function(e) {
-        console.error('未處理的 Promise 錯誤:', e.reason);
-    });
+    <!-- 引入共用工具庫 -->
+    <script src="common.js"></script>
 
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const hintUI = document.getElementById('hintUI');
-    const nameLabel = document.getElementById('gameName');
+    <!-- 主頁面 JavaScript -->
+    <script>
+        // 遊戲數據
+        const games = [
+            {
+                id: 1,
+                name: "浪人對決",
+                englishName: "RONIN DUEL",
+                file: "game1.html",
+                icon: "⚔️",
+                difficulty: "medium",
+                color: "#00f2ff",
+                description: "武士風格的對戰遊戲，挑戰AI對手",
+                features: ["三種難度", "血量系統", "粒子特效"]
+            },
+            {
+                id: 2,
+                name: "井字遊戲",
+                englishName: "Tic Tac Toe",
+                file: "game2.html",
+                icon: "❌",
+                difficulty: "easy",
+                color: "#ff0077",
+                description: "經典的❌⭕三連棋遊戲",
+                features: ["連勝紀錄", "高分保存", "雙人對戰"]
+            },
+            {
+                id: 3,
+                name: "極速點擊",
+                englishName: "Speed Click",
+                file: "game3.html",
+                icon: "⚡",
+                difficulty: "easy",
+                color: "#7000ff",
+                description: "測試反應速度的點擊挑戰",
+                features: ["計時挑戰", "分數計算", "簡單直觀"]
+            },
+            {
+                id: 4,
+                name: "打磚塊進化版",
+                englishName: "Brick Breaker Evolution",
+                file: "game4.html",
+                icon: "🧱",
+                difficulty: "medium",
+                color: "#39ff14",
+                description: "霓虹風格的打磚塊遊戲",
+                features: ["多關卡", "分數系統", "暫停功能"]
+            },
+            {
+                id: 5,
+                name: "記憶翻牌進化版",
+                englishName: "Memory Card Evolution",
+                file: "game5.html",
+                icon: "🎴",
+                difficulty: "medium",
+                color: "#ffd700",
+                description: "記憶配對遊戲，挑戰記憶力",
+                features: ["多種難度", "表情卡片", "計時模式"]
+            },
+            {
+                id: 6,
+                name: "猜數字",
+                englishName: "Guess Number",
+                file: "game6.html",
+                icon: "🔢",
+                difficulty: "easy",
+                color: "#00f2ff",
+                description: "經典猜數字遊戲，1-100範圍",
+                features: ["提示系統", "嘗試記錄", "邏輯挑戰"]
+            },
+            {
+                id: 7,
+                name: "霓虹方塊",
+                englishName: "Neon Blocks",
+                file: "game7.html",
+                icon: "🧊",
+                difficulty: "hard",
+                color: "#ff0077",
+                description: "俄羅斯方塊變體，霓虹風格",
+                features: ["經典玩法", "分數系統", "速度控制"]
+            },
+            {
+                id: 8,
+                name: "霓虹飛行員",
+                englishName: "Neon Pilot",
+                file: "game8.html",
+                icon: "✈️",
+                difficulty: "medium",
+                color: "#7000ff",
+                description: "飛行躲避障礙物遊戲",
+                features: ["障礙生成", "分數計算", "觸控控制"]
+            }
+        ];
 
-    let player = { x: 0, y: 0, w: 24, h: 48, speed: 4.5, color: '#00f2ff', anim: 0, dir: 1 };
-    let keys = {};
-    let npcs = [];
-    let running = false;
-    let frameCount = 0;
-    
-    // 觸控控制變數
-    let touchInput = { x: 0, y: 0, active: false };
-    let joystickActive = false;
-    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-    
-    // 粒子特效系統
-    let particles = [];
-    let lastPlayerPos = { x: 0, y: 0 };
-    let lastMoveTime = 0;
-    
-    // 音效系統
-    let audioContext = null;
-    let lastMoveSound = 0;
-    let nearGateSound = false;
-    
-    function initAudio() {
-        if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
-    }
-    
-    function playSound(frequency, duration, type = 'sine') {
-        if (!audioContext) return;
-        
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.type = type;
-        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-        
-        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + duration);
-    }
-
-    const gateData = [
-        { name: "NEON FIGHTER", row: "top", color: "#00f2ff", file: "game1.html" },
-        { name: "SPACE DRIFT", row: "top", color: "#ff0077", file: "game2.html" },
-        { name: "CYBER PUZZLE", row: "top", color: "#7000ff", file: "game3.html" },
-        { name: "BIO HAZARD", row: "top", color: "#39ff14", file: "game4.html" },
-        { name: "GOLD MINER", row: "bottom", color: "#ffd700", file: "game5.html" },
-        { name: "TECHNO RUN", row: "bottom", color: "#00f2ff", file: "game6.html" },
-        { name: "RHYTHM BOT", row: "bottom", color: "#ff0077", file: "game7.html" },
-        { name: "VOID ESCAPE", row: "bottom", color: "#7000ff", file: "game8.html" }
-    ];
-    let gates = [];
-    const deco = {
-        trees: [{x:0.25, y:0.5}, {x:0.42, y:0.5}, {x:0.58, y:0.5}, {x:0.75, y:0.5}],
-        benches: [{x:0.33, y:0.42}, {x:0.67, y:0.42}],
-        lamps: [{x:0.1, y:0.5}, {x:0.9, y:0.5}]
-    };
-
-    // 粒子特效函數
-    function createParticle(x, y, color = '#00f2ff') {
-        return {
-            x, y, 
-            vx: (Math.random() - 0.5) * 2, 
-            vy: (Math.random() - 0.5) * 2, 
-            life: 1.0, 
-            maxLife: 1.0, 
-            size: Math.random() * 3 + 2, 
-            color
+        // 難度標籤文字
+        const difficultyLabels = {
+            easy: "簡單",
+            medium: "中等",
+            hard: "困難"
         };
-    }
 
-    function updateParticles() {
-        particles = particles.filter(p => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 0.02;
-            p.vx *= 0.98;
-            p.vy *= 0.98;
-            return p.life > 0;
+        // 難度顏色
+        const difficultyColors = {
+            easy: "#4CAF50",
+            medium: "#FF9800",
+            hard: "#F44336"
+        };
+
+        // 初始化頁面
+        document.addEventListener('DOMContentLoaded', function() {
+            renderGameCards();
+            updateStats();
+            setupEventListeners();
         });
-    }
 
-    function drawParticles() {
-        particles.forEach(p => {
-            const alpha = p.life / p.maxLife;
-            ctx.fillStyle = p.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
-            ctx.fill();
-        });
-    }
+        // 渲染遊戲卡片
+        function renderGameCards() {
+            const gameGrid = document.getElementById('gameGrid');
+            gameGrid.innerHTML = '';
 
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        gates = [];
-        
-        // 響應式邊距和間距
-        const margin = Math.max(canvas.width * 0.1, 50);
-        const spacing = (canvas.width - margin * 2) / 3;
-        const gateWidth = Math.min(130, spacing * 0.8);
-        const gateHeight = Math.min(140, canvas.height * 0.2);
-        
-        gateData.forEach((g, i) => {
-            const col = i % 4;
-            const y = g.row === "top" ? 60 : canvas.height - gateHeight - 60;
-            gates.push({ 
-                ...g, 
-                x: margin + col * spacing - gateWidth/2, 
-                y, 
-                w: gateWidth, 
-                h: gateHeight 
+            games.forEach(game => {
+                const highScore = GameUtils.getHighScore(game.englishName);
+                const card = document.createElement('div');
+                card.className = 'game-card';
+                card.innerHTML = `
+                    <div class="game-badge ${game.difficulty}" style="background-color: ${difficultyColors[game.difficulty]}">
+                        ${difficultyLabels[game.difficulty]}
+                    </div>
+                    <div class="icon-wrapper" style="color: ${game.color}">
+                        ${game.icon}
+                    </div>
+                    <div class="card-content">
+                        <h3>${game.name}</h3>
+                        <p class="game-english">${game.englishName}</p>
+                        <p class="game-description">${game.description}</p>
+                        <div class="game-features">
+                            ${game.features.map(feature => `<span class="feature-tag">${feature}</span>`).join('')}
+                        </div>
+                        <div class="game-stats">
+                            <div class="high-score">
+                                <i class="fas fa-trophy"></i>
+                                <span>最高分: ${highScore}</span>
+                            </div>
+                        </div>
+                        <button class="play-btn" onclick="playGame('${game.file}')">
+                            <i class="fas fa-play"></i> 開始遊戲
+                        </button>
+                    </div>
+                `;
+                gameGrid.appendChild(card);
             });
-        });
-        
-        // 調整觸控控制位置
-        if (isMobile) {
-            document.getElementById('touchControls').style.display = 'block';
-            document.getElementById('actionButton').style.display = 'flex';
-            // 顯示觸控提示
-            const touchHint = document.getElementById('touchHint');
-            touchHint.style.display = 'block';
-            // 5秒後自動隱藏提示
+        }
+
+        // 更新統計數據
+        function updateStats() {
+            // 計算總最高分數量
+            let totalHighScores = 0;
+            games.forEach(game => {
+                if (GameUtils.getHighScore(game.englishName) > 0) {
+                    totalHighScores++;
+                }
+            });
+            document.getElementById('totalHighScores').textContent = totalHighScores;
+
+            // 計算總遊玩時間（從遊戲統計）
+            const stats = GameStats.getStats('all');
+            let totalPlayTime = 0;
+            Object.values(stats).forEach(gameStats => {
+                totalPlayTime += gameStats.playTime || 0;
+            });
+            const totalMinutes = Math.floor(totalPlayTime / (1000 * 60));
+            document.getElementById('totalPlayTime').textContent = totalMinutes;
+        }
+
+        // 設置事件監聽器
+        function setupEventListeners() {
+            // 主題變化時更新卡片
+            document.addEventListener('themechange', function() {
+                // 主題變化會自動透過 CSS 處理
+                console.log('主題已變更');
+            });
+
+            // 語言變化時更新文字
+            document.addEventListener('languagechange', function() {
+                // 語言變化會由 LanguageManager 自動處理
+                console.log('語言已變更');
+            });
+        }
+
+        // 開始遊戲
+        function playGame(gameFile) {
+            // 記錄遊戲開始
+            const game = games.find(g => g.file === gameFile);
+            if (game) {
+                GameStats.recordGameStart(game.englishName);
+            }
+            
+            // 顯示載入提示
+            GameUtils.showNotification('載入遊戲中...', 'info', 1500);
+            
+            // 跳轉到遊戲頁面
             setTimeout(() => {
-                touchHint.style.display = 'none';
-            }, 5000);
+                window.location.href = gameFile;
+            }, 500);
         }
-    }
 
-    // --- 核心改動：啟動邏輯 ---
-    function initGame() {
-        document.getElementById('welcomeOverlay').style.display = 'none';
-        resize();
-        
-        // 初始化音效系統
-        initAudio();
-        
-        // 更新提示文字
-        const actionKey = document.getElementById('actionKey');
-        if (isMobile) {
-            actionKey.textContent = '[ACTION]';
-        } else {
-            actionKey.textContent = '[SPACE]';
+        // 顯示遊戲統計
+        function showGameStats() {
+            GameStats.showStatsPanel();
         }
-        
-        if(npcs.length === 0) {
-            for(let i=0; i<7; i++) {
-                npcs.push({ 
-                    x: Math.random()*canvas.width, y: Math.random()*canvas.height, 
-                    w:24, h:48, color:`hsl(${Math.random()*360},70%,60%)`, 
-                    tx:Math.random()*canvas.width, ty:Math.random()*canvas.height,
-                    anim: Math.random()*10, dir: 1, speed: 1.2 + Math.random()
+
+        // 重置所有分數
+        function resetAllScores() {
+            if (confirm('確定要重置所有遊戲的最高分嗎？此操作無法復原。')) {
+                games.forEach(game => {
+                    localStorage.removeItem(`highscore_${game.englishName}`);
                 });
-            }
-        }
-        player.x = canvas.width/2; player.y = canvas.height/2;
-        running = true;
-        
-        // 啟動音效
-        playSound(440, 0.2, 'sine');
-        loop();
-    }
-
-    // 檢查 URL 是否帶有 #back 標籤
-    window.onload = () => {
-        if (window.location.hash === "#back") {
-            initGame(); // 如果是從遊戲返回，直接啟動大廳
-        }
-    };
-    
-    // 處理螢幕旋轉和尺寸變化
-    window.addEventListener('resize', () => {
-        if (running) {
-            resize();
-        }
-    });
-
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
-    
-    // 觸控事件處理
-    function setupTouchControls() {
-        const joystick = document.getElementById('virtualJoystick');
-        const knob = document.getElementById('joystickKnob');
-        const actionBtn = document.getElementById('actionButton');
-        
-        // 虛擬搖桿控制
-        function handleJoystickStart(e) {
-            e.preventDefault();
-            joystickActive = true;
-            touchInput.active = true;
-        }
-        
-        function handleJoystickMove(e) {
-            if (!joystickActive) return;
-            e.preventDefault();
-            
-            const touch = e.touches[0];
-            const rect = joystick.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            
-            let x = touch.clientX - centerX;
-            let y = touch.clientY - centerY;
-            
-            // 限制搖桿移動範圍
-            const maxDist = rect.width / 2 - 25;
-            const dist = Math.hypot(x, y);
-            if (dist > maxDist) {
-                x = (x / dist) * maxDist;
-                y = (y / dist) * maxDist;
-            }
-            
-            // 更新搖桿視覺位置
-            knob.style.transform = `translate(${x - 25}px, ${y - 25}px)`;
-            
-            // 更新輸入值
-            touchInput.x = x / maxDist;
-            touchInput.y = y / maxDist;
-        }
-        
-        function handleJoystickEnd(e) {
-            e.preventDefault();
-            joystickActive = false;
-            touchInput.active = false;
-            touchInput.x = 0;
-            touchInput.y = 0;
-            knob.style.transform = 'translate(-50%, -50%)';
-        }
-        
-        // 搖桿事件監聽
-        joystick.addEventListener('touchstart', handleJoystickStart);
-        joystick.addEventListener('touchmove', handleJoystickMove);
-        joystick.addEventListener('touchend', handleJoystickEnd);
-        joystick.addEventListener('mousedown', handleJoystickStart);
-        document.addEventListener('mousemove', handleJoystickMove);
-        document.addEventListener('mouseup', handleJoystickEnd);
-        
-        // 動作按鈕
-        actionBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            keys['Space'] = true;
-        });
-        
-        actionBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            keys['Space'] = false;
-        });
-        
-        actionBtn.addEventListener('mousedown', () => keys['Space'] = true);
-        actionBtn.addEventListener('mouseup', () => keys['Space'] = false);
-    }
-    
-    // 初始化觸控控制
-    if (isMobile) {
-        setupTouchControls();
-    }
-
-    function drawCharacter(char) {
-        const { x, y, color, anim, dir } = char;
-        const isMoving = char === player ? (Object.values(keys).some(k => k)) : true;
-        const walkCycle = isMoving ? Math.sin(frameCount * 0.15 + anim) : 0;
-        
-        ctx.save();
-        ctx.translate(x, y);
-        if (dir === -1) ctx.scale(-1, 1);
-
-        // 雙腿
-        ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(-5, 5); ctx.lineTo(-8 + walkCycle*6, 20); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(8 - walkCycle*6, 20); ctx.stroke();
-
-        // 身體與頭
-        ctx.fillStyle = "#111"; ctx.strokeStyle = color; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.roundRect(-10, -15, 20, 26, 4); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(0, -28, 12, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        
-        // 發光眼睛
-        ctx.shadowBlur = 8; ctx.shadowColor = color; ctx.fillStyle = color;
-        ctx.fillRect(2, -31, 5, 2); ctx.fillRect(-7, -31, 5, 2);
-        ctx.restore();
-    }
-
-    function update() {
-        frameCount++;
-        let nx = player.x, ny = player.y;
-        let isMoving = false;
-        
-        // 鍵盤輸入
-        if(keys['ArrowUp'] || keys['KeyW']) { ny -= player.speed; isMoving = true; }
-        if(keys['ArrowDown'] || keys['KeyS']) { ny += player.speed; isMoving = true; }
-        if(keys['ArrowLeft'] || keys['KeyA']) { nx -= player.speed; player.dir = -1; isMoving = true; }
-        if(keys['ArrowRight'] || keys['KeyD']) { nx += player.speed; player.dir = 1; isMoving = true; }
-        
-        // 觸控輸入
-        if (touchInput.active) {
-            nx += touchInput.x * player.speed;
-            ny += touchInput.y * player.speed;
-            if (touchInput.x < -0.3) player.dir = -1;
-            else if (touchInput.x > 0.3) player.dir = 1;
-            isMoving = true;
-        }
-
-        player.x = Math.max(20, Math.min(canvas.width-20, nx));
-        player.y = Math.max(20, Math.min(canvas.height-20, ny));
-
-        // 生成移動粒子軌跡
-        if (isMoving && frameCount % 2 === 0) {
-            particles.push(createParticle(
-                player.x + (Math.random() - 0.5) * 20, 
-                player.y + 20, 
-                player.color
-            ));
-            
-            // 移動音效（節流）
-            if (frameCount - lastMoveSound > 15) {
-                playSound(200 + Math.random() * 100, 0.05, 'square');
-                lastMoveSound = frameCount;
+                GameUtils.showNotification('所有最高分已重置', 'success');
+                renderGameCards();
+                updateStats();
             }
         }
 
-        let curG = gates.find(g => player.x > g.x && player.x < g.x+g.w && player.y > g.y && player.y < g.y+g.h);
-        if(curG) {
-            hintUI.style.display = 'block';
-            nameLabel.innerText = curG.name;
-            
-            // 靠近門框的音效
-            if (!nearGateSound) {
-                playSound(440, 0.1, 'sine');
-                nearGateSound = true;
-            }
-            
-            if(keys['Space']) window.location.href = curG.file; // 跳轉到外部遊戲
-        } else { 
-            hintUI.style.display = 'none';
-            nearGateSound = false;
+        // 切換音效設定
+        function toggleAudioSettings() {
+            GameUtils.showNotification('音效設定功能開發中...', 'info');
         }
 
-        // 更新粒子
-        updateParticles();
-
-        npcs.forEach(n => {
-            let dx = n.tx - n.x, dy = n.ty - n.y, dist = Math.hypot(dx, dy);
-            if(dist < 10) {
-                n.tx = Math.random()*canvas.width; n.ty = Math.random()*canvas.height;
-            } else {
-                n.x += (dx/dist)*n.speed; n.y += (dy/dist)*n.speed;
-                n.dir = dx > 0 ? 1 : -1;
-            }
-        });
-    }
-
-    function draw() {
-        ctx.fillStyle = '#050508'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#101025';
-        for(let x=0; x<canvas.width; x+=80) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
-        for(let y=0; y<canvas.height; y+=80) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
-
-        // 繪製門框（帶脈動效果）
-        gates.forEach(g => {
-            const pulse = Math.sin(frameCount * 0.05 + gates.indexOf(g)) * 0.3 + 0.7;
-            ctx.fillStyle = '#000'; ctx.fillRect(g.x, g.y, g.w, g.h);
-            ctx.fillStyle = '#fff'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
-            ctx.fillText(g.name, g.x + g.w/2, g.row==='top'?g.y+g.h+20:g.y-10);
-            
-            // 脈動光效
-            ctx.strokeStyle = g.color; 
-            ctx.lineWidth = 10; 
-            ctx.shadowBlur = 15 + pulse * 10; 
-            ctx.shadowColor = g.color;
-            ctx.globalAlpha = pulse;
-            ctx.strokeRect(g.x, g.y, g.w, g.h);
-            ctx.globalAlpha = 1;
-            ctx.shadowBlur = 0;
-        });
-
-        // 繪製粒子特效
-        drawParticles();
-
-        let entities = [...npcs, player].sort((a, b) => a.y - b.y);
-        entities.forEach(ent => {
-            if(!gates.some(g => ent.x > g.x && ent.x < g.x+g.w && ent.y > g.y && ent.y < g.y+g.h)) {
-                drawCharacter(ent);
-            }
-        });
-
-        deco.trees.forEach(t => {
-            const x=t.x*canvas.width, y=t.y*canvas.height;
-            ctx.fillStyle='rgba(10, 40, 10, 0.9)'; ctx.shadowBlur=20; ctx.shadowColor='#39ff14';
-            ctx.beginPath(); ctx.arc(x, y, 65, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x, y-40, 50, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
-        });
-    }
-
-    function loop() {
-        if(running) {
-            update();
-            draw();
-            requestAnimationFrame(loop);
+        // 3D 視圖切換（保留現有功能）
+        function toggle3DView() {
+            GameUtils.showNotification('3D 視圖功能開發中...', 'info');
         }
-    }
-</script>
+    </script>
+
+    <!-- 額外樣式 -->
+    <style>
+        .header-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-item i {
+            color: var(--primary-color);
+        }
+        
+        .intro-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .intro-section h2 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .intro-section p {
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .game-english {
+            font-family: var(--font-retro);
+            font-size: 0.8em;
+            color: var(--primary-color);
+            margin: 5px 0;
+        }
+        
+        .game-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7em;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .game-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 10px 0;
+            justify-content: center;
+        }
+        
+        .feature-tag {
+            background: rgba(0, 242, 255, 0.1);
+            color: var(--primary-color);
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+        }
+        
+        .game-stats {
+            margin: 15px 0;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .high-score {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-muted);
+            font-size: 0.9em;
+        }
+        
+        .high-score i {
+            color: #ffd700;
+        }
+        
+        .play-btn {
+            background: var(--primary-color);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .play-btn:hover {
+            background: var(--secondary-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 0, 85, 0.3);
+        }
+        
+        .features-section {
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .features-section h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .feature-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
+        }
+        
+        .feature-icon {
+            font-size: 2em;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+        
+        .feature-card h3 {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+        
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.9em;
+            line-height: 1.5;
+            margin: 0;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+        
+        .footer-section h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .footer-section p, .footer-section li {
+            color: var(--text-muted);
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        .footer-section ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .footer-section li {
+            margin-bottom: 8px;
+        }
+        
+        .footer-section a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .footer-section a:hover {
+            color: var(--primary-color);
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            font-size: 0.8em;
+        }
+        
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .header-stats {
+                gap: 15px;
+            }
+            
+            .stat-item {
+                padding: 8px 15px;
+                font-size: 0.8em;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .game-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-stats {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
 </body>
 </html>

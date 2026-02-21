@@ -234,6 +234,214 @@ const GameStats = {
     }
 };
 
+/**
+ * 主題管理系統
+ */
+const ThemeManager = {
+    // 初始化主題
+    init: function() {
+        // 從 localStorage 讀取保存的主題，或偵測系統偏好
+        const savedTheme = localStorage.getItem('theme');
+        const systemPrefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        
+        let theme = 'dark'; // 預設黑暗模式
+        
+        if (savedTheme) {
+            theme = savedTheme;
+        } else if (systemPrefersLight) {
+            theme = 'light';
+        }
+        
+        this.setTheme(theme);
+        this.updateThemeButton();
+        
+        // 監聽系統主題變化
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                // 如果用戶沒有手動設置主題，則跟隨系統
+                this.setTheme(e.matches ? 'light' : 'dark');
+                this.updateThemeButton();
+            }
+        });
+        
+        console.log('主題管理系統已初始化，當前主題:', theme);
+    },
+    
+    // 設置主題
+    setTheme: function(theme) {
+        if (theme !== 'dark' && theme !== 'light') {
+            console.warn('無效的主題:', theme, '，使用預設黑暗模式');
+            theme = 'dark';
+        }
+        
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        // 觸發主題變化事件
+        const event = new CustomEvent('themechange', { detail: { theme } });
+        document.dispatchEvent(event);
+    },
+    
+    // 切換主題
+    toggleTheme: function() {
+        const current = document.documentElement.getAttribute('data-theme') || 'dark';
+        const newTheme = current === 'dark' ? 'light' : 'dark';
+        this.setTheme(newTheme);
+        this.updateThemeButton();
+    },
+    
+    // 更新主題切換按鈕圖標
+    updateThemeButton: function() {
+        const current = document.documentElement.getAttribute('data-theme') || 'dark';
+        const button = document.getElementById('themeToggle');
+        
+        if (button) {
+            button.innerHTML = current === 'dark' ? '☀️' : '🌙';
+            button.title = current === 'dark' ? '切換到明亮模式' : '切換到黑暗模式';
+        }
+    },
+    
+    // 獲取當前主題
+    getCurrentTheme: function() {
+        return document.documentElement.getAttribute('data-theme') || 'dark';
+    },
+    
+    // 檢查是否為黑暗模式
+    isDarkMode: function() {
+        return this.getCurrentTheme() === 'dark';
+    },
+    
+    // 檢查是否為明亮模式
+    isLightMode: function() {
+        return this.getCurrentTheme() === 'light';
+    }
+};
+
+/**
+ * 語言管理系統
+ */
+const LanguageManager = {
+    // 初始化語言
+    init: function() {
+        const savedLang = localStorage.getItem('language') || 'zh-HK';
+        this.setLanguage(savedLang);
+        this.updateLanguageButton();
+    },
+    
+    // 設置語言
+    setLanguage: function(lang) {
+        document.documentElement.lang = lang;
+        localStorage.setItem('language', lang);
+        
+        // 更新所有帶有 data-i18n 屬性的元素
+        this.updateTexts();
+        
+        // 觸發語言變化事件
+        const event = new CustomEvent('languagechange', { detail: { language: lang } });
+        document.dispatchEvent(event);
+    },
+    
+    // 切換語言
+    toggleLanguage: function() {
+        const current = document.documentElement.lang || 'zh-HK';
+        const newLang = current === 'zh-HK' ? 'en' : 'zh-HK';
+        this.setLanguage(newLang);
+        this.updateLanguageButton();
+    },
+    
+    // 更新語言切換按鈕文字
+    updateLanguageButton: function() {
+        const current = document.documentElement.lang || 'zh-HK';
+        const button = document.getElementById('languageToggle');
+        
+        if (button) {
+            button.textContent = current === 'zh-HK' ? 'EN' : '中文';
+            button.title = current === 'zh-HK' ? 'Switch to English' : '切換到繁體中文';
+        }
+    },
+    
+    // 更新所有翻譯文字
+    updateTexts: function() {
+        const lang = document.documentElement.lang || 'zh-HK';
+        const translations = this.getTranslations();
+        
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+            const key = element.getAttribute('data-i18n');
+            if (translations[lang] && translations[lang][key]) {
+                element.textContent = translations[lang][key];
+            }
+        });
+    },
+    
+    // 獲取翻譯字典
+    getTranslations: function() {
+        return {
+            'zh-HK': {
+                'welcome': '歡迎來到遊戲中心',
+                'play': '開始遊戲',
+                'settings': '設定',
+                'theme': '主題',
+                'dark': '黑暗模式',
+                'light': '明亮模式',
+                'language': '語言',
+                'back': '返回',
+                'stats': '統計',
+                'game.ronin.title': '浪人對決',
+                'game.ronin.desc': '武士風格的對戰遊戲，挑戰AI對手',
+                'game.tictactoe.title': '井字遊戲',
+                'game.tictactoe.desc': '經典的❌⭕三連棋遊戲',
+                'game.speedclick.title': '極速點擊',
+                'game.speedclick.desc': '測試反應速度的點擊挑戰',
+                'game.brickbreaker.title': '打磚塊進化版',
+                'game.brickbreaker.desc': '霓虹風格的打磚塊遊戲',
+                'game.memory.title': '記憶翻牌進化版',
+                'game.memory.desc': '記憶配對遊戲，挑戰記憶力',
+                'game.guessnumber.title': '猜數字',
+                'game.guessnumber.desc': '經典猜數字遊戲，1-100範圍',
+                'game.neonblocks.title': '霓虹方塊',
+                'game.neonblocks.desc': '俄羅斯方塊變體，霓虹風格',
+                'game.neonpilot.title': '霓虹飛行員',
+                'game.neonpilot.desc': '飛行躲避障礙物遊戲'
+            },
+            'en': {
+                'welcome': 'Welcome to Game Center',
+                'play': 'Play Game',
+                'settings': 'Settings',
+                'theme': 'Theme',
+                'dark': 'Dark Mode',
+                'light': 'Light Mode',
+                'language': 'Language',
+                'back': 'Back',
+                'stats': 'Statistics',
+                'game.ronin.title': 'Ronin Duel',
+                'game.ronin.desc': 'Samurai-style fighting game vs AI',
+                'game.tictactoe.title': 'Tic Tac Toe',
+                'game.tictactoe.desc': 'Classic XO three-in-a-row game',
+                'game.speedclick.title': 'Speed Click',
+                'game.speedclick.desc': 'Reaction speed clicking challenge',
+                'game.brickbreaker.title': 'Brick Breaker Evolution',
+                'game.brickbreaker.desc': 'Neon-style brick breaking game',
+                'game.memory.title': 'Memory Card Evolution',
+                'game.memory.desc': 'Memory matching game',
+                'game.guessnumber.title': 'Guess Number',
+                'game.guessnumber.desc': 'Classic number guessing game 1-100',
+                'game.neonblocks.title': 'Neon Blocks',
+                'game.neonblocks.desc': 'Tetris variant with neon style',
+                'game.neonpilot.title': 'Neon Pilot',
+                'game.neonpilot.desc': 'Flying obstacle avoidance game'
+            }
+        };
+    }
+};
+
 // 導出到全局
 window.GameUtils = GameUtils;
 window.GameStats = GameStats;
+window.ThemeManager = ThemeManager;
+window.LanguageManager = LanguageManager;
+
+// 頁面加載完成後初始化主題和語言
+document.addEventListener('DOMContentLoaded', function() {
+    ThemeManager.init();
+    LanguageManager.init();
+});

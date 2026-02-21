@@ -1,4 +1,5 @@
 /* --- 1. 全局變數與基礎設定 --- */
+/* 黑暗模式 (預設) */
 :root {
     --bg-color: #0b0c15;
     --card-bg: #151621;
@@ -8,6 +9,24 @@
     --text-muted: #a0a0a0;
     --font-main: 'Noto Sans TC', sans-serif;
     --font-retro: 'Press Start 2P', cursive; /* 像素風格字體 */
+    
+    /* 明亮模式變數 (預設值，將在[data-theme="light"]中被覆蓋) */
+    --bg-color-light: #f5f7fa;
+    --card-bg-light: #ffffff;
+    --primary-color-light: #007acc;
+    --secondary-color-light: #e63946;
+    --text-color-light: #1a1a1a;
+    --text-muted-light: #666666;
+}
+
+/* 明亮模式主題 */
+[data-theme="light"] {
+    --bg-color: var(--bg-color-light);
+    --card-bg: var(--card-bg-light);
+    --primary-color: var(--primary-color-light);
+    --secondary-color: var(--secondary-color-light);
+    --text-color: var(--text-color-light);
+    --text-muted: var(--text-muted-light);
 }
 
 body {
@@ -20,6 +39,7 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* --- 2. 背景裝飾 (網格效果) --- */
@@ -37,6 +57,13 @@ body {
     pointer-events: none;
 }
 
+/* 明亮模式下的背景裝飾 */
+[data-theme="light"] .bg-overlay {
+    background-image: 
+        linear-gradient(rgba(0, 122, 204, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 122, 204, 0.05) 1px, transparent 1px);
+}
+
 /* --- 3. 標頭設計 --- */
 header {
     padding: 60px 20px;
@@ -44,6 +71,12 @@ header {
     background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
     border-bottom: 2px solid var(--primary-color);
     box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+    transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+[data-theme="light"] header {
+    background: radial-gradient(circle at center, #e3f2fd 0%, #bbdefb 100%);
+    box-shadow: 0 0 20px rgba(0, 122, 204, 0.2);
 }
 
 h1 {
@@ -85,7 +118,7 @@ h1 {
     border-radius: 16px;
     padding: 30px 20px;
     text-decoration: none;
-    color: white;
+    color: var(--text-color);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -95,11 +128,20 @@ h1 {
     overflow: hidden;
 }
 
+[data-theme="light"] .game-card {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
 /* 卡片懸停效果 */
 .game-card:hover {
     transform: translateY(-10px) scale(1.02);
     border-color: var(--primary-color);
     box-shadow: 0 10px 30px rgba(0, 242, 255, 0.3);
+}
+
+[data-theme="light"] .game-card:hover {
+    box-shadow: 0 10px 30px rgba(0, 122, 204, 0.2);
 }
 
 .game-card:hover .icon-wrapper {
@@ -114,10 +156,14 @@ h1 {
     filter: drop-shadow(0 0 10px rgba(255,255,255,0.3));
 }
 
+[data-theme="light"] .icon-wrapper {
+    filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.1));
+}
+
 .card-content h3 {
     margin: 10px 0 5px;
     font-size: 1.4em;
-    color: #fff;
+    color: var(--text-color);
 }
 
 .card-content p {
@@ -150,10 +196,19 @@ h1 {
     opacity: 0.7;
 }
 
+[data-theme="light"] .locked {
+    background-color: #f0f0f0;
+    border-color: #ccc;
+}
+
 .locked:hover {
     transform: none;
     box-shadow: none;
     border-color: #444;
+}
+
+[data-theme="light"] .locked:hover {
+    border-color: #ccc;
 }
 
 .lock-overlay {
@@ -171,8 +226,8 @@ h1 {
     transition: opacity 0.3s;
 }
 
-.game-card.locked:hover .lock-overlay {
-    opacity: 1;
+[data-theme="light"] .lock-overlay {
+    background: rgba(255, 255, 255, 0.8);
 }
 
 .lock-icon {
@@ -180,19 +235,95 @@ h1 {
     color: #888;
 }
 
+.game-card.locked:hover .lock-overlay {
+    opacity: 1;
+}
+
 /* --- 8. 頁尾 --- */
 footer {
     padding: 30px;
     text-align: center;
-    color: #666;
+    color: var(--text-muted);
     font-size: 0.8em;
-    border-top: 1px solid #222;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    transition: color 0.3s ease, border-color 0.3s ease;
 }
 
-/* --- 9. 手機適配 --- */
+[data-theme="light"] footer {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* --- 9. 主題切換按鈕 --- */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: var(--card-bg);
+    border: 2px solid var(--primary-color);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.5em;
+    color: var(--primary-color);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 242, 255, 0.4);
+}
+
+[data-theme="light"] .theme-toggle:hover {
+    box-shadow: 0 6px 20px rgba(0, 122, 204, 0.3);
+}
+
+/* --- 10. 語言切換按鈕 --- */
+.language-toggle {
+    position: fixed;
+    top: 20px;
+    right: 80px;
+    z-index: 1000;
+    background: var(--card-bg);
+    border: 2px solid var(--primary-color);
+    border-radius: 25px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: var(--primary-color);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-weight: bold;
+}
+
+.language-toggle:hover {
+    transform: scale(1.05);
+    background: var(--primary-color);
+    color: var(--card-bg);
+}
+
+/* --- 11. 手機適配 --- */
 @media (max-width: 600px) {
     .game-grid {
         grid-template-columns: 1fr; /* 手機上一行一個 */
     }
     h1 { font-size: 1.5em; }
+    .theme-toggle {
+        top: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+        font-size: 1.2em;
+    }
+    .language-toggle {
+        top: 10px;
+        right: 60px;
+        padding: 6px 12px;
+        font-size: 0.8em;
+    }
 }
